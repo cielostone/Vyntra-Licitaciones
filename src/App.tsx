@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
+import { VyntraProvider } from "@/context/VyntraContext";
 import Dashboard from "./pages/Dashboard";
 import Oportunidades from "./pages/Oportunidades";
 import Postulaciones from "./pages/Postulaciones";
@@ -16,23 +17,25 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <FloatingPet />
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/oportunidades" element={<Oportunidades />} />
-            <Route path="/postulaciones" element={<Postulaciones />} />
-            <Route path="/postular/:id" element={<NuevaPostulacion />} />
-            <Route path="/configuracion" element={<Configuracion />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
-      </BrowserRouter>
-    </TooltipProvider>
+    <VyntraProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <FloatingPet />
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/oportunidades" element={<Oportunidades />} />
+              <Route path="/postulaciones" element={<Postulaciones />} />
+              <Route path="/postular/:id" element={<NuevaPostulacion />} />
+              <Route path="/configuracion" element={<Configuracion />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Layout>
+        </BrowserRouter>
+      </TooltipProvider>
+    </VyntraProvider>
   </QueryClientProvider>
 );
 

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, FileText, Send, Save, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { licitaciones, formatCurrency } from "@/data/licitaciones";
+import { useVyntra } from "@/context/VyntraContext";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function NuevaPostulacion() {
     const { id } = useParams();
@@ -18,9 +21,31 @@ export default function NuevaPostulacion() {
 
     const licitacion = licitaciones.find(l => l.id === id);
 
+    const { saveDraft, getDraft } = useVyntra();
+
     const [items, setItems] = useState([
         { descripcion: "Servicio Base", cantidad: 1, precioUnitario: 0 }
     ]);
+
+    const [commercialConditions, setCommercialConditions] = useState({
+        plazoEntrega: "15",
+        validezOferta: "60",
+        observaciones: ""
+    });
+
+    useEffect(() => {
+        if (id) {
+            const draft = getDraft(id);
+            if (draft) {
+                setItems(draft.items);
+                setCommercialConditions(draft.commercialConditions);
+                toast({
+                    title: "Borrador Cargado",
+                    description: `Se ha recuperado tu avance del ${new Date(draft.lastUpdated).toLocaleDateString()}`,
+                });
+            }
+        }
+    }, [id, getDraft, toast]);
 
     if (!licitacion) {
         return <div className="p-10">Licitación no encontrada</div>;
@@ -41,6 +66,15 @@ export default function NuevaPostulacion() {
     const total = totalNeto + iva;
 
     const handleSave = () => {
+        if (!id) return;
+
+        saveDraft({
+            id,
+            lastUpdated: new Date().toISOString(),
+            items,
+            commercialConditions
+        });
+
         toast({
             title: "Borrador Guardado",
             description: "Tu postulación ha sido guardada localmente.",
@@ -48,11 +82,57 @@ export default function NuevaPostulacion() {
     };
 
     const handleGenerateQuote = () => {
-        toast({
-            title: "Generando Cotización...",
-            description: "El PDF se está generando con los datos ingresados.",
+        if (!licitacion) return;
+
+        const doc = new jsPDF();
+
+        // Header
+        doc.setFontSize(20);
+        doc.text("COTIZACIÓN", 105, 20, { align: "center" });
+
+        doc.setFontSize(12);
+        doc.text(`Licitación: ${licitacion.id}`, 20, 40);
+        doc.text(`Cliente: ${licitacion.organismo}`, 20, 50);
+        doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 20, 60);
+
+        // Items Table
+        const tableBody = items.map(item => [
+            item.descripcion,
+            item.cantidad,
+            formatCurrency(item.precioUnitario),
+            formatCurrency(item.cantidad * item.precioUnitario)
+        ]);
+
+        autoTable(doc, {
+            startY: 70,
+            head: [['Descripción', 'Cant.', 'P. Unit', 'Total Neto']],
+            body: tableBody,
+            foot: [['', '', 'Total Neto', formatCurrency(totalNeto)]],
         });
-        // Here we would trigger the PDF generation logic
+
+        // Totals
+        const finalY = (doc as any).lastAutoTable.finalY + 10;
+
+        doc.text(`IVA (19%): ${formatCurrency(iva)}`, 140, finalY);
+        doc.setFont("helvetica", "bold");
+        doc.text(`TOTAL: ${formatCurrency(total)}`, 140, finalY + 10);
+
+        // Conditions
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text("Condiciones Comerciales:", 20, finalY + 30);
+        doc.text(`- Plazo de Entrega: ${commercialConditions.plazoEntrega} días`, 20, finalY + 37);
+        doc.text(`- Validez de Oferta: ${commercialConditions.validezOferta} días`, 20, finalY + 44);
+        if (commercialConditions.observaciones) {
+            doc.text(`- Observaciones: ${commercialConditions.observaciones}`, 20, finalY + 51);
+        }
+
+        doc.save(`Cotizacion_${licitacion.id}.pdf`);
+
+        toast({
+            title: "Cotización Descargada",
+            description: "El archivo PDF se ha generado correctamente.",
+        });
     };
 
     return (
@@ -121,16 +201,28 @@ export default function NuevaPostulacion() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Plazo de Entrega (Días)</Label>
-                                    <Input type="number" placeholder="15" />
+                                    <Input
+                                        type="number"
+                                        value={commercialConditions.plazoEntrega}
+                                        onChange={(e) => setCommercialConditions({ ...commercialConditions, plazoEntrega: e.target.value })}
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Validez de la Oferta (Días)</Label>
-                                    <Input type="number" defaultValue={60} />
+                                    <Input
+                                        type="number"
+                                        value={commercialConditions.validezOferta}
+                                        onChange={(e) => setCommercialConditions({ ...commercialConditions, validezOferta: e.target.value })}
+                                    />
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <Label>Observaciones / Glosa</Label>
-                                <Textarea placeholder="Detalles adicionales sobre la propuesta..." />
+                                <Textarea
+                                    value={commercialConditions.observaciones}
+                                    onChange={(e) => setCommercialConditions({ ...commercialConditions, observaciones: e.target.value })}
+                                    placeholder="Detalles adicionales sobre la propuesta..."
+                                />
                             </div>
                         </CardContent>
                     </Card>
