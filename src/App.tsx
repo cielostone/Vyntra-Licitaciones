@@ -11,7 +11,7 @@ import Postulaciones from "./pages/Postulaciones";
 import Configuracion from "./pages/Configuracion";
 import NotFound from "./pages/NotFound";
 import NuevaPostulacion from "./pages/NuevaPostulacion";
-import { FloatingPet } from "@/components/FloatingPet";
+import Suscripcion from "./pages/Suscripcion";
 
 const queryClient = new QueryClient();
 
@@ -22,13 +22,13 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <FloatingPet />
           <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/oportunidades" element={<Oportunidades />} />
               <Route path="/postulaciones" element={<Postulaciones />} />
               <Route path="/postular/:id" element={<NuevaPostulacion />} />
+              <Route path="/suscripcion" element={<Suscripcion />} />
               <Route path="/configuracion" element={<Configuracion />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

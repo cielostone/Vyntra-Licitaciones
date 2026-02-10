@@ -1,5 +1,6 @@
 
 import { useState, useMemo } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { Search, Filter, ExternalLink, Star, MoreHorizontal, FileDown, Eye, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -34,7 +35,23 @@ export default function Oportunidades() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-  const { favorites, toggleFavorite } = useVyntra();
+  const { favorites, toggleFavorite, subscriptionPlan } = useVyntra();
+  const { toast } = useToast();
+
+  const handleToggleFavorite = (id: string) => {
+    const isFavorite = favorites.includes(id);
+
+    if (!isFavorite && subscriptionPlan === 'free' && favorites.length >= 3) {
+      toast({
+        title: "Límite de Favoritos 🔒",
+        description: "El plan gratuito permite hasta 3 favoritos. Actualiza a PRO para ilimitados.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toggleFavorite(id);
+  };
 
   const filteredLicitaciones = useMemo(() => {
     return licitaciones.filter((licitacion) => {
@@ -228,7 +245,7 @@ export default function Oportunidades() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 hover:bg-yellow-100 hover:text-yellow-600"
-                          onClick={() => toggleFavorite(licitacion.id)}
+                          onClick={() => handleToggleFavorite(licitacion.id)}
                         >
                           <Star className={`h-4 w-4 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} />
                         </Button>

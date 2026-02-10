@@ -68,8 +68,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Productivity & Incentives */}
-      <div className="grid gap-4 md:grid-cols-3 animate-fade-in" style={{ animationDelay: "150ms" }}>
+      <div className="grid gap-4 md:grid-cols-2 animate-fade-in" style={{ animationDelay: "150ms" }}>
         <Card className="col-span-2 bg-gradient-to-br from-card to-secondary/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -92,8 +91,6 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
-
-        <VyntraPetCard progresoMeta={progresoMeta} />
       </div>
 
       {/* Recent Activity Table */}

@@ -21,7 +21,7 @@ export default function NuevaPostulacion() {
 
     const licitacion = licitaciones.find(l => l.id === id);
 
-    const { saveDraft, getDraft } = useVyntra();
+    const { saveDraft, getDraft, subscriptionPlan } = useVyntra();
 
     const [items, setItems] = useState([
         { descripcion: "Servicio Base", cantidad: 1, precioUnitario: 0 }
@@ -83,6 +83,15 @@ export default function NuevaPostulacion() {
 
     const handleGenerateQuote = () => {
         if (!licitacion) return;
+
+        if (subscriptionPlan === 'free') {
+            toast({
+                title: "Función Premium 🔒",
+                description: "Actualiza a PRO para generar y descargar cotizaciones en PDF.",
+                variant: "destructive",
+            });
+            return;
+        }
 
         const doc = new jsPDF();
 
