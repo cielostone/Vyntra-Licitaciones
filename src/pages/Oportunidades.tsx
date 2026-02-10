@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Search, Filter, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { licitaciones, formatCurrency, formatDate, LicitacionStatus } from "@/data/licitaciones";
+import { calculateMatchScore } from "@/lib/matching";
 
 export default function Oportunidades() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,13 +20,13 @@ export default function Oportunidades() {
 
   const filteredLicitaciones = useMemo(() => {
     return licitaciones.filter((licitacion) => {
-      const matchesSearch = 
+      const matchesSearch =
         licitacion.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
         licitacion.organismo.toLowerCase().includes(searchQuery.toLowerCase()) ||
         licitacion.id.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       const matchesStatus = statusFilter === "Todas" || licitacion.estado === statusFilter;
-      
+
       return matchesSearch && matchesStatus;
     });
   }, [searchQuery, statusFilter]);
@@ -77,59 +79,99 @@ export default function Oportunidades() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/30">
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Match</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">ID Licitación</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Título</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Organismo</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Monto Estimado</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Monto Neto</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">IVA (19%)</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Fecha de Cierre</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Estado</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredLicitaciones.map((licitacion, index) => (
-                <tr 
-                  key={licitacion.id} 
-                  className="group transition-colors hover:bg-muted/20 animate-fade-in"
-                  style={{ animationDelay: `${250 + index * 30}ms` }}
-                >
-                  <td className="px-4 py-4">
-                    <span className="text-sm font-mono text-primary">{licitacion.id}</span>
-                  </td>
-                  <td className="px-4 py-4">
-                    <p className="text-sm font-medium text-foreground line-clamp-2 max-w-xs">
-                      {licitacion.titulo}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">{licitacion.categoria}</p>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-muted-foreground max-w-[200px] truncate">
-                    {licitacion.organismo}
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className="text-sm font-semibold text-foreground">
-                      {formatCurrency(licitacion.montoEstimado)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-muted-foreground whitespace-nowrap">
-                    {formatDate(licitacion.fechaCierre)}
-                  </td>
-                  <td className="px-4 py-4">
-                    <Badge variant={licitacion.estado === "Abierta" ? "open" : "closing"}>
-                      {licitacion.estado}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-4">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-primary hover:text-primary hover:bg-primary/10"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Ver
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+              {filteredLicitaciones.map((licitacion, index) => {
+                // Real Match Score using Keyword Analysis
+                const matchScore = calculateMatchScore(licitacion);
+                return (
+                  <tr
+                    key={licitacion.id}
+                    className="group transition-colors hover:bg-muted/20 animate-fade-in"
+                    style={{ animationDelay: `${250 + index * 30}ms` }}
+                  >
+                    <td className="px-4 py-4 w-24">
+                      <div className="flex flex-col gap-1">
+                        <span className={`text-sm font-bold ${matchScore > 85 ? 'text-success' : 'text-primary'}`}>
+                          {matchScore}%
+                        </span>
+                        <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${matchScore > 85 ? 'bg-success' : 'bg-primary'}`}
+                            style={{ width: `${matchScore}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="text-sm font-mono text-muted-foreground">{licitacion.id}</span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <p className="text-sm font-medium text-foreground line-clamp-2 max-w-xs group-hover:text-primary transition-colors">
+                        {licitacion.titulo}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">{licitacion.categoria}</p>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-muted-foreground max-w-[200px] truncate">
+                      {licitacion.organismo}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="text-sm font-semibold text-foreground">
+                        {formatCurrency(licitacion.montoEstimado)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="text-sm text-muted-foreground">
+                        {formatCurrency(licitacion.montoEstimado * 0.19)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-muted-foreground whitespace-nowrap">
+                      {formatDate(licitacion.fechaCierre)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <Badge
+                        variant="outline"
+                        className={`
+                          ${licitacion.estado === "Abierta" ? "bg-success/10 text-success border-success/20" : ""}
+                          ${licitacion.estado === "Por Cerrar" ? "bg-warning/10 text-warning border-warning/20" : ""}
+                          ${licitacion.estado === "Adjudicada" ? "bg-primary/10 text-primary border-primary/20" : ""}
+                        `}
+                      >
+                        {licitacion.estado}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary hover:text-primary hover:bg-primary/10"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        Ver
+                      </Button>
+                      <Link to={`/postular/${licitacion.id}`}>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="ml-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+                        >
+                          Postular
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
