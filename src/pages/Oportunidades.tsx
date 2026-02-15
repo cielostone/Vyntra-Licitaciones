@@ -25,9 +25,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { licitaciones, formatCurrency, formatDate, LicitacionStatus, Licitacion } from "@/data/licitaciones";
+import { licitaciones as mockLicitaciones, formatCurrency, formatDate, LicitacionStatus, Licitacion } from "@/data/licitaciones";
 import { calculateMatchScore } from "@/lib/matching";
 import { useVyntra } from "@/context/VyntraContext";
+import { useLicitaciones } from "@/hooks/useLicitaciones";
+import { Loader2 } from "lucide-react";
 
 export default function Oportunidades() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,6 +37,7 @@ export default function Oportunidades() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
+  const { licitaciones, loading } = useLicitaciones();
   const { favorites, toggleFavorite, subscriptionPlan } = useVyntra();
   const { toast } = useToast();
 
@@ -54,6 +57,8 @@ export default function Oportunidades() {
   };
 
   const filteredLicitaciones = useMemo(() => {
+    if (loading) return [];
+
     return licitaciones.filter((licitacion) => {
       const matchesSearch =
         licitacion.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -65,7 +70,7 @@ export default function Oportunidades() {
 
       return matchesSearch && matchesStatus && matchesFavorite;
     });
-  }, [searchQuery, statusFilter, showFavoritesOnly, favorites]);
+  }, [searchQuery, statusFilter, showFavoritesOnly, favorites, licitaciones, loading]);
 
   const toggleSelection = (id: string) => {
     setSelectedItems(prev =>

@@ -4,9 +4,10 @@ import {
   FolderOpen,
   Settings,
   ChevronLeft,
-  Zap
+  Zap,
+  LogOut
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -22,7 +23,9 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useVyntra } from "@/context/VyntraContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 const menuItems = [
   {
@@ -54,9 +57,22 @@ const menuItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { toggleSidebar, state } = useSidebar();
   const { subscriptionPlan } = useVyntra();
+  const { user, signOut } = useAuth();
   const isCollapsed = state === "collapsed";
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Sesión cerrada correctamente");
+      navigate("/login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      toast.error("Error al cerrar sesión");
+    }
+  };
 
   return (
     <Sidebar
@@ -145,18 +161,36 @@ export function AppSidebar() {
         )}
 
         <div className={cn(
-          "flex items-center gap-3",
-          isCollapsed && "justify-center"
+          "flex items-center justify-between gap-2",
+          isCollapsed && "flex-col justify-center"
         )}>
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
-            <span className="text-xs font-medium text-primary">VG</span>
-          </div>
-          {!isCollapsed && (
-            <div className="animate-fade-in">
-              <p className="text-sm font-medium text-foreground">Usuario Demo</p>
-              <p className="text-xs text-muted-foreground">demo@vyntra.gov</p>
+          <div className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
+              <span className="text-xs font-medium text-primary">
+                {user?.email?.charAt(0).toUpperCase() || "U"}
+              </span>
             </div>
-          )}
+            {!isCollapsed && (
+              <div className="animate-fade-in overflow-hidden">
+                <p className="text-sm font-medium text-foreground truncate max-w-[120px]">
+                  {user?.email?.split('@')[0] || "Usuario"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate max-w-[120px]">
+                  {user?.email || "usuario@vyntra.gov"}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            title="Cerrar Sessión"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </SidebarFooter>
     </Sidebar>

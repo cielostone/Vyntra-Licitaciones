@@ -1,27 +1,31 @@
 
 import { Licitacion } from "@/data/licitaciones";
 
-// Mock user profile - Ideally this would come from a user context or store
-const userProfile = {
+// Default mock profile for fallback until we implement profile preferences in DB
+const defaultProfile = {
   keywords: ["tecnología", "software", "desarrollo", "infraestructura", "seguridad", "ciberseguridad", "transformación digital"],
   categories: ["Tecnología", "Consultoría", "Servicios"]
 };
 
-export const calculateMatchScore = (licitacion: Licitacion): number => {
+export const calculateMatchScore = (licitacion: Licitacion, userProfile: any = defaultProfile): number => {
   let score = 0;
   const maxScore = 100;
-  
+
+  const profile = userProfile || defaultProfile;
+  const keywords = profile.keywords || [];
+  const categories = profile.categories || [];
+
   // 1. Category Match (30 points)
-  if (userProfile.categories.includes(licitacion.categoria)) {
+  if (categories.includes(licitacion.categoria)) {
     score += 30;
   }
 
   // 2. Keyword Matching in Title (40 points)
   const titleLower = licitacion.titulo.toLowerCase();
-  const matchedKeywords = userProfile.keywords.filter(keyword => 
+  const matchedKeywords = keywords.filter((keyword: string) =>
     titleLower.includes(keyword.toLowerCase())
   );
-  
+
   // Add points for each keyword found, up to 40
   score += Math.min(matchedKeywords.length * 15, 40);
 

@@ -5,15 +5,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { licitaciones, formatCurrency, formatDate, calculateTax } from "@/data/licitaciones";
+import { formatCurrency, formatDate, calculateTax } from "@/data/licitaciones";
 import { Link } from "react-router-dom";
+import { useLicitaciones } from "@/hooks/useLicitaciones";
+import { Loader2 } from "lucide-react";
 
 export default function Dashboard() {
+  const { licitaciones, loading } = useLicitaciones();
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
   const recentLicitaciones = licitaciones.slice(0, 5);
 
   // KPIs Financieros
   const adjudicadas = licitaciones.filter(l => l.estado === "Adjudicada");
-  const recaudacionTotalNeto = adjudicadas.reduce((acc, l) => acc + l.montoEstimado, 0);
+  const recaudacionTotalNeto = adjudicadas.reduce((acc, l) => acc + Number(l.montoEstimado), 0);
   const ivaDebitoAcumulado = calculateTax(recaudacionTotalNeto);
   const flujoMensual = recaudacionTotalNeto * 1.19; // Bruto
 
