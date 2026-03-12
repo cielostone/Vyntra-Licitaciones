@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { VyntraProvider } from "@/context/VyntraContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { PrivateRoute } from "@/components/PrivateRoute";
 import Dashboard from "./pages/Dashboard";
 import Oportunidades from "./pages/Oportunidades";
 import Postulaciones from "./pages/Postulaciones";
@@ -26,17 +27,17 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              {/* Public Routes */}
+              {/* Ruta pública */}
               <Route path="/login" element={<Login />} />
 
-              {/* Protected Routes - Wrapping in Layout */}
-              <Route path="/" element={<Layout><Dashboard /></Layout>} />
-              <Route path="/oportunidades" element={<Layout><Oportunidades /></Layout>} />
-              <Route path="/postulaciones" element={<Layout><Postulaciones /></Layout>} />
-              <Route path="/postular/:id" element={<Layout><NuevaPostulacion /></Layout>} />
-              <Route path="/suscripcion" element={<Layout><Suscripcion /></Layout>} />
-              <Route path="/configuracion" element={<Layout><Configuracion /></Layout>} />
-              <Route path="*" element={<Layout><NotFound /></Layout>} />
+              {/* Rutas protegidas — redirigen a /login si no hay sesión */}
+              <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
+              <Route path="/oportunidades" element={<PrivateRoute><Layout><Oportunidades /></Layout></PrivateRoute>} />
+              <Route path="/postulaciones" element={<PrivateRoute><Layout><Postulaciones /></Layout></PrivateRoute>} />
+              <Route path="/postular/:id" element={<PrivateRoute><Layout><NuevaPostulacion /></Layout></PrivateRoute>} />
+              <Route path="/suscripcion" element={<PrivateRoute><Layout><Suscripcion /></Layout></PrivateRoute>} />
+              <Route path="/configuracion" element={<PrivateRoute><Layout><Configuracion /></Layout></PrivateRoute>} />
+              <Route path="*" element={<PrivateRoute><Layout><NotFound /></Layout></PrivateRoute>} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>

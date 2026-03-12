@@ -1,54 +1,64 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Licitacion } from "@/data/licitaciones";
-import { toast } from "sonner";
+import { fetchLicitacionesActivas, Licitacion } from "@/services/mercadoPublico";
+
+// Re-exportamos el tipo para que el resto de la app no tenga que cambiar imports
+export type { Licitacion };
 
 export const useLicitaciones = () => {
     const [licitaciones, setLicitaciones] = useState<Licitacion[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [lastSync, setLastSync] = useState<Date | null>(null);
+
+    const fetchData = async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const data = await fetchLicitacionesActivas();
+            setLicitaciones(data);
+            setLastSync(new Date());
+        } catch (err: any) {
+            console.error("Error cargando licitaciones:", err);
+
+            // Si falla la API, intentar con caché en localStorage
+            const cached = localStorage.getItem("vyntra_licitaciones_cache");
+            if (cached) {
+                try {
+                    const { data, timestamp } = JSON.parse(cached);
+                    setLicitaciones(data);
+                    setLastSync(new Date(timestamp));
+                    setError("⚠️ Mostrando datos en caché (sin conexión a Mercado Público)");
+                } catch {
+                    setError("No se pudieron cargar las licitaciones");
+                }
+            } else {
+                setError(err.message ?? "Error al conectar con Mercado Público");
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Guardar en caché cuando los datos se actualizan exitosamente
+    useEffect(() => {
+        if (licitaciones.length > 0 && !error) {
+            localStorage.setItem("vyntra_licitaciones_cache", JSON.stringify({
+                data: licitaciones,
+                timestamp: new Date().toISOString(),
+            }));
+        }
+    }, [licitaciones, error]);
 
     useEffect(() => {
-        const fetchLicitaciones = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from('licitaciones')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                // Map database columns to application types if necessary
-                // Currently they match: id, titulo, organismo, monto_estimado, etc.
-                // But DB identifiers might be snake_case (e.g. monto_estimado) and TS is camelCase?
-                // Let's assume the DB returns matching json or we need to map.
-                // Supabase returns columns as they are in DB (snake_case usually).
-
-                // Mapping DB (snake_case) to TS Model (camelCase)
-                const mappedData: Licitacion[] = (data || []).map((item: any) => ({
-                    id: item.id,
-                    titulo: item.titulo,
-                    organismo: item.organismo,
-                    montoEstimado: item.monto_estimado,
-                    fechaCierre: item.fecha_cierre,
-                    estado: item.estado,
-                    categoria: item.categoria,
-                    fechaAdjudicacion: item.fecha_adjudicacion,
-                    description: item.description
-                }));
-
-                setLicitaciones(mappedData);
-            } catch (err: any) {
-                console.error("Error fetching licitaciones:", err);
-                setError(err);
-                toast.error("Error cargando licitaciones");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchLicitaciones();
+        fetchData();
     }, []);
 
-    return { licitaciones, loading, error };
+    return {
+        licitaciones,
+        loading,
+        error,
+        lastSync,
+        refetch: fetchData,   // Para el botón de sincronización manual
+    };
 };

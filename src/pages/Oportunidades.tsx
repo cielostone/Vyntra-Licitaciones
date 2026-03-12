@@ -1,7 +1,8 @@
 
 import { useState, useMemo } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Filter, ExternalLink, Star, MoreHorizontal, FileDown, Eye, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Search, Star, FileDown, Eye, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -25,17 +26,25 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { licitaciones as mockLicitaciones, formatCurrency, formatDate, LicitacionStatus, Licitacion } from "@/data/licitaciones";
+import { formatCurrency, formatDate } from "@/data/licitaciones";
+import type { LicitacionStatus } from "@/data/licitaciones";
 import { calculateMatchScore } from "@/lib/matching";
 import { useVyntra } from "@/context/VyntraContext";
 import { useLicitaciones } from "@/hooks/useLicitaciones";
 import { Loader2 } from "lucide-react";
+import { LicitacionDrawer } from "@/components/LicitacionDrawer";
 
 export default function Oportunidades() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<LicitacionStatus | "Todas">("Todas");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [page, setPage] = useState(1);
+  const [selectedLicitacionId, setSelectedLicitacionId] = useState<string | null>(null);
+  const PAGE_SIZE = 50;
+
+  // Debounce: retrasa el filtro 300ms después del último keystroke
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const { licitaciones, loading } = useLicitaciones();
   const { favorites, toggleFavorite, subscriptionPlan } = useVyntra();
@@ -56,21 +65,30 @@ export default function Oportunidades() {
     toggleFavorite(id);
   };
 
+  // Filtrado con debouncedSearch (no searchQuery) para evitar lag
   const filteredLicitaciones = useMemo(() => {
     if (loading) return [];
-
+    const q = debouncedSearch.toLowerCase();
     return licitaciones.filter((licitacion) => {
-      const matchesSearch =
-        licitacion.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        licitacion.organismo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        licitacion.id.toLowerCase().includes(searchQuery.toLowerCase());
-
+      const matchesSearch = !q ||
+        licitacion.titulo.toLowerCase().includes(q) ||
+        licitacion.organismo.toLowerCase().includes(q) ||
+        licitacion.id.toLowerCase().includes(q);
       const matchesStatus = statusFilter === "Todas" || licitacion.estado === statusFilter;
       const matchesFavorite = showFavoritesOnly ? favorites.includes(licitacion.id) : true;
-
       return matchesSearch && matchesStatus && matchesFavorite;
     });
-  }, [searchQuery, statusFilter, showFavoritesOnly, favorites, licitaciones, loading]);
+  }, [debouncedSearch, statusFilter, showFavoritesOnly, favorites, licitaciones, loading]);
+
+  // Paginación — renderizar solo PAGE_SIZE filas a la vez
+  const totalPages = Math.ceil(filteredLicitaciones.length / PAGE_SIZE);
+  const paginatedLicitaciones = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredLicitaciones.slice(start, start + PAGE_SIZE);
+  }, [filteredLicitaciones, page]);
+
+  // Reset página al cambiar filtros
+  useMemo(() => { setPage(1); }, [debouncedSearch, statusFilter, showFavoritesOnly]);
 
   const toggleSelection = (id: string) => {
     setSelectedItems(prev =>
@@ -181,15 +199,14 @@ export default function Oportunidades() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredLicitaciones.map((licitacion, index) => {
+              {paginatedLicitaciones.map((licitacion, index) => {
                 const matchScore = calculateMatchScore(licitacion);
                 const isFavorite = favorites.includes(licitacion.id);
 
                 return (
                   <tr
                     key={licitacion.id}
-                    className="group transition-colors hover:bg-muted/30 animate-fade-in"
-                    style={{ animationDelay: `${250 + index * 30}ms` }}
+                    className="group transition-colors hover:bg-muted/30"
                   >
                     <td className="px-4 py-3">
                       <Checkbox
@@ -213,7 +230,7 @@ export default function Oportunidades() {
                     </td>
                     <td className="px-4 py-3 max-w-[300px]">
                       <div className="flex flex-col">
-                        <span className="font-medium truncate text-foreground group-hover:text-primary transition-colors cursor-pointer" title={licitacion.titulo}>
+                        <span className="font-medium truncate text-foreground hover:text-primary transition-colors cursor-pointer hover:underline underline-offset-2" title={licitacion.titulo} onClick={() => setSelectedLicitacionId(licitacion.id)}>
                           {licitacion.titulo}
                         </span>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
@@ -291,6 +308,38 @@ export default function Oportunidades() {
           </table>
         </div>
       </div>
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground animate-fade-in">
+          <span>
+            Mostrando {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, filteredLicitaciones.length)} de {filteredLicitaciones.length} licitaciones
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1 rounded border border-border bg-card hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              ← Anterior
+            </button>
+            <span className="font-mono">{page} / {totalPages}</span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-3 py-1 rounded border border-border bg-card hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Siguiente →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Drawer de detalle — se abre al hacer click en el título */}
+      <LicitacionDrawer
+        licitacionId={selectedLicitacionId}
+        onClose={() => setSelectedLicitacionId(null)}
+      />
     </div>
   );
 }

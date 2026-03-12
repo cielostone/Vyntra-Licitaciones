@@ -1,5 +1,5 @@
 
-import { Licitacion } from "@/data/licitaciones";
+import { Licitacion } from "@/services/mercadoPublico";
 
 // Default mock profile for fallback until we implement profile preferences in DB
 const defaultProfile = {

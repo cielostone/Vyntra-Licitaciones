@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, Send, Save, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, FileText, Send, Save, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { licitaciones, formatCurrency } from "@/data/licitaciones";
+import { formatCurrency } from "@/data/licitaciones";
+import { fetchLicitacionPorCodigo, type Licitacion } from "@/services/mercadoPublico";
 import { useVyntra } from "@/context/VyntraContext";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -18,10 +19,20 @@ export default function NuevaPostulacion() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { toast } = useToast();
-
-    const licitacion = licitaciones.find(l => l.id === id);
-
     const { saveDraft, getDraft, subscriptionPlan } = useVyntra();
+
+    // Cargar licitación desde la API real
+    const [licitacion, setLicitacion] = useState<Licitacion | null>(null);
+    const [loadingLic, setLoadingLic] = useState(true);
+
+    useEffect(() => {
+        if (!id) return;
+        setLoadingLic(true);
+        fetchLicitacionPorCodigo(id)
+            .then(data => setLicitacion(data))
+            .catch(() => setLicitacion(null))
+            .finally(() => setLoadingLic(false));
+    }, [id]);
 
     const [items, setItems] = useState([
         { descripcion: "Servicio Base", cantidad: 1, precioUnitario: 0 }
@@ -47,8 +58,18 @@ export default function NuevaPostulacion() {
         }
     }, [id, getDraft, toast]);
 
+    // Mostrar spinner mientras carga la licitación
+    if (loadingLic) {
+        return (
+            <div className="p-10 flex items-center justify-center gap-3 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Cargando licitación desde Mercado Público...
+            </div>
+        );
+    }
+
     if (!licitacion) {
-        return <div className="p-10">Licitación no encontrada</div>;
+        return <div className="p-10 text-muted-foreground">Licitación no encontrada en Mercado Público.</div>;
     }
 
     const handleAddItem = () => {
@@ -269,9 +290,13 @@ export default function NuevaPostulacion() {
                             <Save className="h-4 w-4" />
                             Guardar Borrador
                         </Button>
-                        <Button variant="secondary" className="w-full gap-2 border-primary/20 bg-primary/10 text-primary hover:bg-primary/20">
-                            <Send className="h-4 w-4" />
-                            Enviar a MercadoPúblico
+                        <Button
+                            variant="secondary"
+                            className="w-full gap-2 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                            onClick={() => window.open(licitacion.fuente_url, '_blank')}
+                        >
+                            <ExternalLink className="h-4 w-4" />
+                            Abrir en Mercado Público
                         </Button>
                     </div>
 
