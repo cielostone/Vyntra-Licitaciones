@@ -32,6 +32,24 @@ create table if not exists organizations (
 
 comment on table organizations is 'Cada fila es un tenant (empresa o profesional independiente)';
 
+-- RLS para organizations
+alter table organizations enable row level security;
+
+create policy "organizations_view_own" on organizations
+  for select using (
+    id = (select organization_id from profiles where id = auth.uid())
+  );
+
+create policy "organizations_insert_authenticated" on organizations
+  for insert with check (
+    auth.role() = 'authenticated'
+  );
+
+create policy "organizations_update_own" on organizations
+  for update using (
+    id = (select organization_id from profiles where profiles.id = auth.uid() and role in ('owner', 'admin'))
+  );
+
 -- ─────────────────────────────────────────────
 -- 2. PROFILES (usuarios vinculados a un tenant)
 -- ─────────────────────────────────────────────

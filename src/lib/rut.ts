@@ -7,10 +7,7 @@ export const formatRut = (rut: string): string => {
     const body = cleanRut.slice(0, -1);
     const dv = cleanRut.slice(-1).toUpperCase();
 
-    // Format body with dots
-    const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-
-    return `${formattedBody}-${dv}`;
+    return `${body}-${dv}`;
 };
 
 export const validateRut = (rut: string): boolean => {

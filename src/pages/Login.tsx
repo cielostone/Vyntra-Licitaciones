@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Zap, Building2, User, ArrowRight, Loader2, ChevronLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatRut, validateRut } from "@/lib/rut";
 
 const Login = () => {
     const [email, setEmail] = useState("");
@@ -21,7 +22,7 @@ const Login = () => {
     const [personType, setPersonType] = useState<"natural" | "juridica">("juridica");
     const [companyName, setCompanyName] = useState("");
     const [companyRut, setCompanyRut] = useState("");
-    const [phone, setPhone] = useState("");
+    const [phone, setPhone] = useState("+56 9 ");
 
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
@@ -33,12 +34,58 @@ const Login = () => {
         }
     }, [user, authLoading, navigate]);
 
+    const validateEmail = (email: string) => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    };
+
+    const validatePasswordStrength = (password: string) => {
+        return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\w\W]{8,}$/.test(password);
+    };
+
+    const handleFullNameChange = (val: string) => {
+        const clean = val.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, '');
+        setFullName(clean);
+    };
+
+    const handleCompanyNameChange = (val: string) => {
+        const clean = val.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s'.,&-]/g, '');
+        setCompanyName(clean);
+    };
+
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
+            if (!validateEmail(email)) {
+                toast.error("Por favor ingresa un correo electrónico válido.");
+                setLoading(false);
+                return;
+            }
+
             if (isSignUp) {
+                if (!validatePasswordStrength(password)) {
+                    toast.error("La contraseña debe tener al menos 8 caracteres, mayúsculas, minúsculas y números.");
+                    setLoading(false);
+                    return;
+                }
+                if (!validateRut(rut)) {
+                    toast.error("El RUN ingresado no es válido.");
+                    setLoading(false);
+                    return;
+                }
+                if (personType === 'juridica' && !validateRut(companyRut)) {
+                    toast.error("El RUT de la Empresa no es válido.");
+                    setLoading(false);
+                    return;
+                }
+                const phoneDigits = phone.slice(6).replace(/\D/g, '');
+                if (phoneDigits.length !== 8) {
+                    toast.error("El teléfono debe tener exactamente 8 números después del prefijo +56 9");
+                    setLoading(false);
+                    return;
+                }
+
                 const { data: authData, error: authError } = await supabase.auth.signUp({
                     email,
                     password,
@@ -78,6 +125,17 @@ const Login = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handlePhoneChange = (val: string) => {
+        if (!val.startsWith("+56 9 ")) {
+            if (val.startsWith("+56 9") || val === "+56 " || val === "+56" || val === "+" || val === "") {
+                setPhone("+56 9 ");
+                return;
+            }
+        }
+        const digits = val.slice(6).replace(/\D/g, '').slice(0, 8);
+        setPhone("+56 9 " + digits);
     };
 
     if (authLoading) {
@@ -254,16 +312,16 @@ const Login = () => {
                                             <Input
                                                 placeholder="Empresa SpA"
                                                 value={companyName}
-                                                onChange={(e) => setCompanyName(e.target.value)}
+                                                onChange={(e) => handleCompanyNameChange(e.target.value)}
                                                 required
                                             />
                                         </div>
                                         <div className="space-y-2">
                                             <Label className="text-sm">RUT Empresa *</Label>
                                             <Input
-                                                placeholder="76.543.210-K"
+                                                placeholder="76543210-K"
                                                 value={companyRut}
-                                                onChange={(e) => setCompanyRut(e.target.value)}
+                                                onChange={(e) => setCompanyRut(formatRut(e.target.value))}
                                                 required
                                             />
                                         </div>
@@ -278,7 +336,7 @@ const Login = () => {
                                         <Input
                                             placeholder="Juan Pérez"
                                             value={fullName}
-                                            onChange={(e) => setFullName(e.target.value)}
+                                            onChange={(e) => handleFullNameChange(e.target.value)}
                                             required
                                         />
                                     </div>
@@ -287,9 +345,9 @@ const Login = () => {
                                             {personType === "juridica" ? "RUN Representante *" : "RUN *"}
                                         </Label>
                                         <Input
-                                            placeholder="12.345.678-9"
+                                            placeholder="12345678-9"
                                             value={rut}
-                                            onChange={(e) => setRut(e.target.value)}
+                                            onChange={(e) => setRut(formatRut(e.target.value))}
                                             required
                                         />
                                     </div>
@@ -301,7 +359,8 @@ const Login = () => {
                                         type="tel"
                                         placeholder="+56 9 1234 5678"
                                         value={phone}
-                                        onChange={(e) => setPhone(e.target.value)}
+                                        onChange={(e) => handlePhoneChange(e.target.value)}
+                                        required
                                     />
                                 </div>
                             </div>
