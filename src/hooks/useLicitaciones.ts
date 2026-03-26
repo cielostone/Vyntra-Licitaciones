@@ -15,20 +15,43 @@ export const useLicitaciones = () => {
         setError(null);
 
         try {
+            // 1. Intentar usar Caché Fresco (menos de 5 minutos) para evitar la lentitud de M.P.
+            const cached = localStorage.getItem("vyntra_licitaciones_cache");
+            if (cached) {
+                const { data, timestamp } = JSON.parse(cached);
+                const cacheAge = new Date().getTime() - new Date(timestamp).getTime();
+                const isFresh = cacheAge < 5 * 60 * 1000; // 5 minutos de vida útil
+
+                if (isFresh && data.length > 0) {
+                    setLicitaciones(data);
+                    setLastSync(new Date(timestamp));
+                    setLoading(false);
+                    return; // ¡Salir temprano y mostrar instantáneamente!
+                }
+            }
+
+            // 2. Si no hay caché o es viejo, llamar a la API lenta
             const data = await fetchLicitacionesActivas();
             setLicitaciones(data);
             setLastSync(new Date());
+
+            // 3. Guardar el nuevo caché
+            localStorage.setItem("vyntra_licitaciones_cache", JSON.stringify({
+                data: data,
+                timestamp: new Date().toISOString(),
+            }));
+            
         } catch (err: any) {
             console.error("Error cargando licitaciones:", err);
 
-            // Si falla la API, intentar con caché en localStorage
+            // 4. Si falla la API por sobrecarga, mostrar el caché viejo como rescate
             const cached = localStorage.getItem("vyntra_licitaciones_cache");
             if (cached) {
                 try {
                     const { data, timestamp } = JSON.parse(cached);
                     setLicitaciones(data);
                     setLastSync(new Date(timestamp));
-                    setError("⚠️ Mostrando datos en caché (sin conexión a Mercado Público)");
+                    setError("⚠️ API de M.P. saturada. Mostrando versión anterior.");
                 } catch {
                     setError("No se pudieron cargar las licitaciones");
                 }
