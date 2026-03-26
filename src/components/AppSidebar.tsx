@@ -77,21 +77,21 @@ export function AppSidebar() {
   return (
     <Sidebar
       collapsible="icon"
-      className="border-r border-sidebar-border bg-sidebar"
+      className="border-r border-indigo-500/10 bg-[#0c0e1a] shadow-2xl shadow-black/50"
     >
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
+      <SidebarHeader className="border-b border-white/5 px-4 py-5 bg-[#0c0e1a]">
         <div className="flex items-center justify-between">
           <div className={cn(
-            "flex items-center gap-3 transition-all duration-200",
+            "flex items-center gap-3 transition-all duration-300",
             isCollapsed && "justify-center"
           )}>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-primary shadow-glow">
-              <Zap className="h-4 w-4 text-primary-foreground" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-[0_0_15px_rgba(99,102,241,0.4)]">
+              <Zap className="h-5 w-5 text-white" />
             </div>
             {!isCollapsed && (
-              <div className="animate-fade-in">
-                <h1 className="text-lg font-semibold text-foreground">Vyntra</h1>
-                <p className="text-xs text-muted-foreground">Gov Platform</p>
+              <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+                <h1 className="text-xl font-black text-white tracking-tight">Vyntra</h1>
+                <p className="text-[10px] uppercase tracking-widest text-indigo-400 font-semibold">Gov Platform</p>
               </div>
             )}
           </div>
@@ -100,7 +100,7 @@ export function AppSidebar() {
               variant="ghost"
               size="icon"
               onClick={toggleSidebar}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+              className="h-8 w-8 text-slate-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -108,10 +108,13 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-4">
+      <SidebarContent className="px-3 py-6 bg-[#0c0e1a]">
         <SidebarGroup>
+          <div className="mb-2 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            {!isCollapsed && "Navegación Principal"}
+          </div>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1.5">
               {menuItems.map((item) => {
                 const isActive = location.pathname === item.url;
                 return (
@@ -120,21 +123,21 @@ export function AppSidebar() {
                       asChild
                       tooltip={item.title}
                       className={cn(
-                        "group relative h-10 w-full rounded-lg transition-all duration-200",
+                        "group relative h-11 w-full rounded-xl transition-all duration-300",
                         isActive
-                          ? "bg-sidebar-accent text-foreground"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
+                          ? "bg-indigo-500/15 text-indigo-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] border border-indigo-500/20"
+                          : "text-slate-400 hover:bg-white/5 hover:text-white border border-transparent"
                       )}
                     >
-                      <NavLink to={item.url}>
+                      <NavLink to={item.url} className="flex items-center gap-3">
                         {isActive && (
-                          <div className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
+                          <div className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
                         )}
                         <item.icon className={cn(
-                          "h-4 w-4 transition-colors",
-                          isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                          "h-5 w-5 transition-all duration-300",
+                          isActive ? "text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" : "text-slate-500 group-hover:text-slate-300"
                         )} />
-                        <span className="font-medium">{item.title}</span>
+                        <span className={cn("font-medium text-sm", isActive && "font-semibold text-white")}>{item.title}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -145,38 +148,39 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-4">
+      <SidebarFooter className="border-t border-white/5 p-4 bg-[#0c0e1a] backdrop-blur-md">
         {subscriptionPlan === 'free' && !isCollapsed && (
-          <div className="mb-4 p-3 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-lg border border-indigo-500/20 animate-fade-in">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap className="h-4 w-4 text-indigo-500" />
-              <span className="text-xs font-semibold text-indigo-700">Plan Gratuito</span>
+          <div className="mb-5 p-4 bg-gradient-to-br from-indigo-500/10 to-violet-500/5 rounded-xl border border-indigo-500/20 animate-in fade-in slide-in-from-bottom-4 duration-500 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
+            <div className="flex items-center gap-2 mb-3 relative z-10">
+              <Zap className="h-4 w-4 text-indigo-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-300">Plan Inicial</span>
             </div>
-            <Button size="sm" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white h-7 text-xs" asChild>
+            <Button size="sm" className="w-full bg-indigo-600 hover:bg-indigo-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white h-9 text-xs font-semibold transition-all relative z-10" asChild>
               <NavLink to="/suscripcion">
-                Mejorar Plan
+                Mejorar a Pro
               </NavLink>
             </Button>
           </div>
         )}
 
         <div className={cn(
-          "flex items-center justify-between gap-2",
-          isCollapsed && "flex-col justify-center"
+          "flex items-center justify-between gap-2 p-2 rounded-xl border border-white/5 bg-white/5 transition-all",
+          isCollapsed ? "flex-col justify-center py-3" : "px-3"
         )}>
           <div className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
-              <span className="text-xs font-medium text-primary">
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 flex items-center justify-center shadow-inner">
+              <span className="text-xs font-bold text-slate-300">
                 {user?.email?.charAt(0).toUpperCase() || "U"}
               </span>
             </div>
             {!isCollapsed && (
-              <div className="animate-fade-in overflow-hidden">
-                <p className="text-sm font-medium text-foreground truncate max-w-[120px]">
+              <div className="animate-in fade-in slide-in-from-bottom-1 overflow-hidden">
+                <p className="text-sm font-bold text-white truncate max-w-[110px]">
                   {user?.email?.split('@')[0] || "Usuario"}
                 </p>
-                <p className="text-xs text-muted-foreground truncate max-w-[120px]">
-                  {user?.email || "usuario@vyntra.gov"}
+                <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 truncate max-w-[110px]">
+                  Administrador
                 </p>
               </div>
             )}
@@ -186,8 +190,8 @@ export function AppSidebar() {
             variant="ghost"
             size="icon"
             onClick={handleLogout}
-            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            title="Cerrar Sessión"
+            className="h-8 w-8 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+            title="Cerrar Sesión"
           >
             <LogOut className="h-4 w-4" />
           </Button>

@@ -124,21 +124,24 @@ export default function Oportunidades() {
   };
 
   return (
-    <div className="p-6 md:p-8 lg:p-10">
-      <div className="mb-6 animate-fade-in flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
+    <div className="p-4 md:p-8 lg:p-10 max-w-[1600px] mx-auto">
+      <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest backdrop-blur-md mb-1">
+            Radar Activo
+          </div>
+          <h1 className="text-3xl font-extrabold text-foreground md:text-4xl tracking-tight">
             Oportunidades
           </h1>
-          <p className="mt-1 text-muted-foreground">
-            Explora licitaciones activas en Mercado Público
+          <p className="mt-1 text-lg font-medium text-muted-foreground">
+            Explora licitaciones activas en Mercado Público con inteligencia artificial
           </p>
         </div>
 
         {/* Bulk Actions */}
         {selectedItems.length > 0 && (
-          <div className="animate-in fade-in slide-in-from-right-4">
-            <Button variant="outline" className="gap-2 text-primary border-primary/20 bg-primary/5">
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <Button className="gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-500/25">
               <FileDown className="h-4 w-4" />
               Exportar ({selectedItems.length})
             </Button>
@@ -147,58 +150,59 @@ export default function Oportunidades() {
       </div>
 
       {/* Filters */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center animate-fade-in" style={{ animationDelay: "100ms" }}>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center animate-in fade-in slide-in-from-bottom-6 duration-700 delay-150">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <Input
-            placeholder="Buscar..."
+            placeholder="Buscar por palabra clave, ID o institución..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-card border-border"
+            className="pl-11 h-12 bg-white/70 dark:bg-card/40 border-slate-200 dark:border-white/10 backdrop-blur-xl focus-visible:ring-indigo-500/50 shadow-sm rounded-xl font-medium"
           />
         </div>
         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as LicitacionStatus | "Todas")}>
-          <SelectTrigger className="w-40 bg-card border-border">
+          <SelectTrigger className="w-48 h-12 bg-white/70 dark:bg-card/40 border-slate-200 dark:border-white/10 backdrop-blur-xl focus-visible:ring-indigo-500/50 shadow-sm rounded-xl font-medium">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Todas">Todas</SelectItem>
-            <SelectItem value="Abierta">Abierta</SelectItem>
-            <SelectItem value="Por Cerrar">Por Cerrar</SelectItem>
+          <SelectContent className="rounded-xl border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 backdrop-blur-xl shadow-xl">
+            <SelectItem value="Todas" className="font-medium">Todas las licitaciones</SelectItem>
+            <SelectItem value="Abierta" className="font-medium text-emerald-600 dark:text-emerald-400">Abierta</SelectItem>
+            <SelectItem value="Por Cerrar" className="font-medium text-amber-600 dark:text-amber-400">Por Cerrar</SelectItem>
           </SelectContent>
         </Select>
         <Button
           variant={showFavoritesOnly ? "default" : "outline"}
           size="icon"
           onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-          className={showFavoritesOnly ? "bg-yellow-400 hover:bg-yellow-500 text-yellow-900 border-yellow-400" : ""}
+          className={`h-12 w-12 rounded-xl border-slate-200 dark:border-white/10 shadow-sm backdrop-blur-xl transition-all ${showFavoritesOnly ? "bg-amber-400 hover:bg-amber-500 text-amber-900 border-amber-400 shadow-amber-400/20" : "bg-white/70 dark:bg-card/40 hover:bg-slate-100 dark:hover:bg-white/5"}`}
           title="Ver Favoritos"
         >
-          <Star className={`h-4 w-4 ${showFavoritesOnly ? "fill-current" : ""}`} />
+          <Star className={`h-5 w-5 ${showFavoritesOnly ? "fill-current" : "text-slate-400 hover:text-amber-500"}`} />
         </Button>
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden animate-fade-in shadow-sm" style={{ animationDelay: "200ms" }}>
+      <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white/70 dark:bg-card/50 backdrop-blur-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="px-4 py-3 w-[40px]">
+              <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-100/50 dark:bg-slate-900/50">
+                <th className="px-6 py-4 w-[60px]">
                   <Checkbox
                     checked={selectedItems.length === filteredLicitaciones.length && filteredLicitaciones.length > 0}
                     onCheckedChange={toggleAll}
+                    className="border-slate-300 dark:border-slate-600 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
                   />
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground w-[80px]">Match</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Título</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground w-[120px] hidden md:table-cell">Monto</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground w-[100px]">Cierre</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground w-[100px] hidden sm:table-cell">Estado</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground w-[160px]">Acciones</th>
+                <th className="px-6 py-4 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[11px] w-[100px]">Match AI</th>
+                <th className="px-6 py-4 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[11px]">Título de Oportunidad</th>
+                <th className="px-6 py-4 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[11px] w-[140px] hidden md:table-cell">Monto Neto</th>
+                <th className="px-6 py-4 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[11px] w-[120px]">Cierre</th>
+                <th className="px-6 py-4 text-left font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[11px] w-[120px] hidden sm:table-cell">Estado</th>
+                <th className="px-6 py-4 text-right font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[11px] w-[200px]">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {paginatedLicitaciones.map((licitacion, index) => {
                 const matchScore = calculateMatchScore(licitacion);
                 const isFavorite = favorites.includes(licitacion.id);
@@ -206,96 +210,100 @@ export default function Oportunidades() {
                 return (
                   <tr
                     key={licitacion.id}
-                    className="group transition-colors hover:bg-muted/30"
+                    className="group transition-all hover:bg-slate-50 dark:hover:bg-white/[0.02]"
                   >
-                    <td className="px-4 py-3">
+                    <td className="px-6 py-4">
                       <Checkbox
                         checked={selectedItems.includes(licitacion.id)}
                         onCheckedChange={() => toggleSelection(licitacion.id)}
+                        className="border-slate-300 dark:border-slate-600 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
                       />
                     </td>
-                    <td className="px-4 py-3">
-                      <TooltipProvider>
+                    <td className="px-6 py-4">
+                      <TooltipProvider delayDuration={200}>
                         <Tooltip>
                           <TooltipTrigger>
-                            <div className={`font-bold ${matchScore > 85 ? 'text-emerald-600' : 'text-blue-600'}`}>
+                            <div className={`inline-flex items-center justify-center font-bold px-2.5 py-1 rounded-lg ${matchScore > 85 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'}`}>
                               {matchScore}%
                             </div>
                           </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Coincidencia basada en palabras clave y categoría</p>
+                          <TooltipContent className="bg-slate-900 border-white/10 text-white font-medium shadow-2xl">
+                            <p>Score de compatibilidad basado en el Radar Vyntra</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </td>
-                    <td className="px-4 py-3 max-w-[300px]">
-                      <div className="flex flex-col">
-                        <span className="font-medium truncate text-foreground hover:text-primary transition-colors cursor-pointer hover:underline underline-offset-2" title={licitacion.titulo} onClick={() => setSelectedLicitacionId(licitacion.id)}>
+                    <td className="px-6 py-4 max-w-[350px]">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-semibold text-foreground hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer hover:underline underline-offset-4 line-clamp-2" title={licitacion.titulo} onClick={() => setSelectedLicitacionId(licitacion.id)}>
                           {licitacion.titulo}
                         </span>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                          <span className="font-mono">{licitacion.id}</span>
-                          <span className="hidden sm:inline">• {licitacion.organismo}</span>
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                          <span className="font-mono text-indigo-500 dark:text-indigo-400">{licitacion.id}</span>
+                          <span className="hidden sm:inline">•</span>
+                          <span className="hidden sm:inline truncate">{licitacion.organismo}</span>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell font-mono text-muted-foreground">
+                    <td className="px-6 py-4 hidden md:table-cell font-bold text-foreground">
                       {formatCurrency(licitacion.montoEstimado)}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className={`text-xs ${getDeadlineColor(licitacion.fechaCierre)}`}>
+                    <td className="px-6 py-4">
+                      <div className={`text-sm ${getDeadlineColor(licitacion.fechaCierre)}`}>
                         {getDaysRemaining(licitacion.fechaCierre)}
                       </div>
-                      <div className="text-[10px] text-muted-foreground hidden sm:block">
+                      <div className="text-[11px] font-medium text-muted-foreground hidden sm:block mt-0.5">
                         {formatDate(licitacion.fechaCierre)}
                       </div>
                     </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
+                    <td className="px-6 py-4 hidden sm:table-cell">
                       <Badge
                         variant="outline"
-                        className={`text-[10px] px-2 py-0 border-0 
-                          ${licitacion.estado === "Abierta" ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20" : ""}
-                          ${licitacion.estado === "Por Cerrar" ? "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20" : ""}
+                        className={`font-bold px-3 py-1 rounded-full border border-transparent whitespace-nowrap
+                          ${licitacion.estado === "Abierta" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : ""}
+                          ${licitacion.estado === "Por Cerrar" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" : ""}
                         `}
                       >
                         {licitacion.estado}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-yellow-100 hover:text-yellow-600"
+                          className="h-9 w-9 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-500/10"
                           onClick={() => handleToggleFavorite(licitacion.id)}
                         >
-                          <Star className={`h-4 w-4 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} />
+                          <Star className={`h-4 w-4 ${isFavorite ? "fill-amber-400 text-amber-500" : "text-slate-400 hover:text-amber-500"}`} />
                         </Button>
 
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50">
+                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
                               <Eye className="h-4 w-4" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-80">
-                            <div className="space-y-2">
-                              <h4 className="font-semibold leading-none flex items-center gap-2">
-                                <AlertTriangle className="h-4 w-4 text-amber-500" /> Análisis Rápido IA
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                                Licitación de alta complejidad técnica. Requiere boleta de garantía por 5%.
-                              </p>
-                              <div className="flex gap-2 text-xs font-medium pt-2">
-                                <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Margin: Alto</span>
-                                <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">Competencia: Media</span>
-                              </div>
+                          <PopoverContent className="w-80 p-0 overflow-hidden border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl shadow-2xl rounded-2xl">
+                            <div className="p-4 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-800/50">
+                                <h4 className="font-bold text-sm tracking-wide flex items-center gap-2 text-foreground">
+                                  <AlertTriangle className="h-4 w-4 text-amber-500" /> Análisis Rápido IA
+                                </h4>
+                            </div>
+                            <div className="p-4 space-y-3">
+                                <p className="text-sm font-medium text-muted-foreground leading-relaxed">
+                                  Licitación de alta complejidad técnica. Requiere boleta de garantía por 5%.
+                                </p>
+                                <div className="flex gap-2">
+                                  <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 shadow-none font-bold">Margin: Alto</Badge>
+                                  <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 shadow-none font-bold">Competencia: Media</Badge>
+                                </div>
                             </div>
                           </PopoverContent>
                         </Popover>
 
                         <Link to={`/postular/${licitacion.id}`}>
-                          <Button size="sm" className="h-8 px-3 ml-1 bg-primary text-primary-foreground hover:bg-primary/90">
+                          <Button size="sm" className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-md shadow-indigo-500/20 transition-all hover:scale-105 active:scale-95">
                             Postular
                           </Button>
                         </Link>
@@ -311,26 +319,32 @@ export default function Oportunidades() {
 
       {/* Paginación */}
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground animate-fade-in">
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm font-medium text-slate-500 dark:text-slate-400 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-500">
           <span>
-            Mostrando {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, filteredLicitaciones.length)} de {filteredLicitaciones.length} licitaciones
+            Mostrando <span className="text-foreground font-bold">{((page - 1) * PAGE_SIZE) + 1}</span> a <span className="text-foreground font-bold">{Math.min(page * PAGE_SIZE, filteredLicitaciones.length)}</span> de <span className="text-foreground font-bold">{filteredLicitaciones.length}</span> licitaciones
           </span>
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1 rounded border border-border bg-card hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 h-9 rounded-lg border-slate-200 dark:border-white/10 bg-white/50 dark:bg-card/40 backdrop-blur-xl hover:bg-slate-100 dark:hover:bg-white/5 font-bold shadow-sm"
             >
-              ← Anterior
-            </button>
-            <span className="font-mono">{page} / {totalPages}</span>
-            <button
+              Anterior
+            </Button>
+            <div className="flex px-4 h-9 items-center justify-center font-mono font-bold bg-white/50 dark:bg-card/40 border border-slate-200 dark:border-white/10 rounded-lg shadow-sm">
+              {page} / {totalPages}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1 rounded border border-border bg-card hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 h-9 rounded-lg border-slate-200 dark:border-white/10 bg-white/50 dark:bg-card/40 backdrop-blur-xl hover:bg-slate-100 dark:hover:bg-white/5 font-bold shadow-sm"
             >
-              Siguiente →
-            </button>
+              Siguiente
+            </Button>
           </div>
         </div>
       )}
