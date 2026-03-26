@@ -93,9 +93,9 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Second Row: Insights & Assistant */}
-      <div className="grid gap-6 md:grid-cols-3 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
-        <Card className="col-span-2 relative overflow-hidden border-indigo-500/10 bg-gradient-to-br from-card/80 to-indigo-900/5 backdrop-blur-xl shadow-xl rounded-2xl">
+      {/* Second Row: Insights */}
+      <div className="grid gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
+        <Card className="relative overflow-hidden border-indigo-500/10 bg-gradient-to-br from-card/80 to-indigo-900/5 backdrop-blur-xl shadow-xl rounded-2xl">
           <div className="absolute inset-0 bg-grid-slate-900/[0.04] bg-[size:16px_16px] dark:bg-grid-white/[0.02]" />
           <CardHeader className="relative z-10">
             <CardTitle className="flex items-center gap-3 text-xl font-bold">
@@ -122,10 +122,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Vyntra Pet Card */}
-        <div className="col-span-1">
-          <VyntraPetCard progresoMeta={progresoMeta} />
-        </div>
       </div>
 
       {/* Recent Activity Table */}
@@ -188,109 +184,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function VyntraPetCard({ progresoMeta }: { progresoMeta: number }) {
-  const [rotation, setRotation] = React.useState({ x: 0, y: 0 });
-  const [isHovering, setIsHovering] = React.useState(false);
-  const [message, setMessage] = React.useState<string | null>(null);
-  const [petType, setPetType] = React.useState<'dragon' | 'drone'>('drone');
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isHovering) return;
-    const card = e.currentTarget;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const rotateY = ((x / rect.width) * 10) - 5;
-    const rotateX = -(((y / rect.height) * 10) - 5);
-
-    setRotation({ x: rotateX, y: rotateY });
-  };
-
-  const messages = [
-    "Objetivo en curso.",
-    "Analizando radar.",
-    "Todo en orden.",
-    "Sistema óptimo."
-  ];
-
-  const handlePetClick = () => {
-    setMessage(messages[Math.floor(Math.random() * messages.length)]);
-    setTimeout(() => setMessage(null), 3000);
-  };
-
-  const togglePetType = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPetType(prev => prev === 'dragon' ? 'drone' : 'dragon');
-  }
-
-  const petImage = petType === 'drone' ? "/pets/drone.png" : "/pets/dragon_v2.png";
-
-  return (
-    <div
-      className="perspective-1000 h-full"
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => { setIsHovering(false); setRotation({ x: 0, y: 0 }); }}
-      onMouseMove={handleMouseMove}
-    >
-      <Card
-        className="h-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white overflow-hidden relative border-none shadow-xl shadow-indigo-500/20 rounded-2xl"
-        style={{
-          transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
-          transformStyle: 'preserve-3d',
-          transition: 'transform 0.1s ease-out'
-        }}
-      >
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-bl-full blur-2xl"></div>
-
-        <CardHeader className="relative z-10 flex flex-row items-center justify-between pb-0">
-          <CardTitle className="text-sm font-bold flex items-center gap-2 text-white/90 uppercase tracking-widest">
-            <Activity className="h-4 w-4 text-indigo-200" />
-            IA Asistente
-          </CardTitle>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-white/50 hover:text-white hover:bg-white/10 rounded-lg" onClick={togglePetType}>
-            <Activity className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-
-        <CardContent className="text-center relative z-10 flex flex-col items-center justify-between h-[calc(100%-3rem)] pt-6">
-          <div
-            className="relative w-36 h-36 cursor-pointer group flex items-center justify-center transform transition-transform hover:scale-110"
-            onClick={handlePetClick}
-          >
-            <img
-              src={petImage}
-              alt="Vyntra Pet"
-              className="w-full h-full object-contain animate-float drop-shadow-2xl"
-              style={{ animation: 'float 6s ease-in-out infinite' }}
-            />
-            {message && (
-              <div className="absolute -top-6 bg-white/10 backdrop-blur-md text-white px-4 py-2 rounded-xl text-xs font-bold border border-white/20 shadow-2xl animate-in zoom-in-50 duration-200">
-                {message}
-              </div>
-            )}
-          </div>
-
-          <div className="w-full mt-auto pb-2">
-            <div className="flex justify-between items-center mb-3">
-              <div className="text-left">
-                <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider">Módulos</p>
-                <p className="text-sm font-black text-white">EN LÍNEA</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider">Sync</p>
-                <p className="text-sm font-black text-white">{Math.round(progresoMeta)}%</p>
-              </div>
-            </div>
-            <Progress value={progresoMeta} className="h-1.5 bg-black/20" indicatorClassName="bg-white" />
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
