@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/data/licitaciones";
 import { fetchLicitacionPorCodigo, type Licitacion } from "@/services/mercadoPublico";
 import { useVyntra } from "@/context/VyntraContext";
+import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -25,6 +26,9 @@ export default function NuevaPostulacion() {
     const [licitacion, setLicitacion] = useState<Licitacion | null>(null);
     const [loadingLic, setLoadingLic] = useState(true);
 
+    // Datos de la Organización (Logo, Firma, etc)
+    const [organization, setOrganization] = useState<any>(null);
+
     useEffect(() => {
         if (!id) return;
         setLoadingLic(true);
@@ -33,6 +37,19 @@ export default function NuevaPostulacion() {
             .catch(() => setLicitacion(null))
             .finally(() => setLoadingLic(false));
     }, [id]);
+
+    useEffect(() => {
+        const fetchOrg = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { data: pData } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
+            if (pData?.organization_id) {
+                const { data: oData } = await supabase.from('organizations').select('*').eq('id', pData.organization_id).single();
+                if (oData) setOrganization(oData);
+            }
+        };
+        fetchOrg();
+    }, []);
 
     const [items, setItems] = useState([
         { descripcion: "Servicio Base", cantidad: 1, precioUnitario: 0 }
@@ -116,52 +133,130 @@ export default function NuevaPostulacion() {
 
         const doc = new jsPDF();
 
-        // Header
-        doc.setFontSize(20);
-        doc.text("COTIZACIÓN", 105, 20, { align: "center" });
+        // Colors
+        const primaryColor = [79, 70, 229]; // Indigo 600
+        const secondaryColor = [100, 116, 139]; // Slate 500
+        const darkText = [15, 23, 42]; // Slate 900
 
-        doc.setFontSize(12);
-        doc.text(`Licitación: ${licitacion.id}`, 20, 40);
-        doc.text(`Cliente: ${licitacion.organismo}`, 20, 50);
-        doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 20, 60);
+        // ================= HEADER CORPORATIVO =================
+        // Background banner
+        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.rect(0, 0, 210, 30, "F");
 
-        // Items Table
-        const tableBody = items.map(item => [
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        doc.setTextColor(255, 255, 255);
+        doc.text("COTIZACIÓN OFICIAL", 105, 20, { align: "center" });
+
+        // Add Logo if exists
+        try {
+            if (organization?.logo_url) {
+                // To safely add images from URL, the image must be base64. 
+                // We'll load it visually if it's external, or just skip if it fails CORS
+                // For MVP, we simulated the logo text
+                doc.setFontSize(14);
+                doc.text(organization.name || "Mi Empresa", 15, 20);
+            }
+        } catch (e) {
+            console.warn("Could not add logo to PDF");
+        }
+
+        doc.setTextColor(darkText[0], darkText[1], darkText[2]);
+        
+        // ================= INFO LICITACIÓN =================
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("DATOS DE LA LICITACIÓN", 15, 45);
+        
+        doc.setFont("helvetica", "normal");
+        doc.text(`ID Mercado Público:`, 15, 52);
+        doc.setFont("helvetica", "bold");
+        doc.text(licitacion.id, 55, 52);
+
+        doc.setFont("helvetica", "normal");
+        doc.text(`Organismo Cliente:`, 15, 59);
+        doc.text(licitacion.organismo, 55, 59);
+
+        doc.text(`Fecha Emisión:`, 15, 66);
+        doc.text(new Date().toLocaleDateString(), 55, 66);
+
+        // ================= TABLA DE ÍTEMS =================
+        const tableBody = items.map((item, i) => [
+            (i + 1).toString(),
             item.descripcion,
-            item.cantidad,
+            item.cantidad.toString(),
             formatCurrency(item.precioUnitario),
             formatCurrency(item.cantidad * item.precioUnitario)
         ]);
 
         autoTable(doc, {
-            startY: 70,
-            head: [['Descripción', 'Cant.', 'P. Unit', 'Total Neto']],
+            startY: 75,
+            head: [['N°', 'Descripción del Servicio/Producto', 'Cant.', 'Precio Unitario', 'Total Neto']],
             body: tableBody,
-            foot: [['', '', 'Total Neto', formatCurrency(totalNeto)]],
+            theme: 'striped',
+            headStyles: { fillColor: primaryColor as any, textColor: 255, fontStyle: 'bold' },
+            styles: { fontSize: 9, cellPadding: 4 },
+            columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                2: { cellWidth: 15, halign: 'center' },
+                3: { halign: 'right' },
+                4: { halign: 'right', fontStyle: 'bold' }
+            }
         });
 
-        // Totals
+        // ================= TOTALES =================
         const finalY = (doc as any).lastAutoTable.finalY + 10;
+        
+        doc.setFillColor(248, 250, 252); // Slate 50
+        doc.rect(120, finalY - 5, 75, 25, "F");
 
-        doc.text(`IVA (19%): ${formatCurrency(iva)}`, 140, finalY);
-        doc.setFont("helvetica", "bold");
-        doc.text(`TOTAL: ${formatCurrency(total)}`, 140, finalY + 10);
-
-        // Conditions
-        doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
-        doc.text("Condiciones Comerciales:", 20, finalY + 30);
-        doc.text(`- Plazo de Entrega: ${commercialConditions.plazoEntrega} días`, 20, finalY + 37);
-        doc.text(`- Validez de Oferta: ${commercialConditions.validezOferta} días`, 20, finalY + 44);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.text(`Total Neto:`, 125, finalY);
+        doc.text(formatCurrency(totalNeto), 185, finalY, { align: "right" });
+
+        doc.text(`IVA (19%):`, 125, finalY + 7);
+        doc.text(formatCurrency(iva), 185, finalY + 7, { align: "right" });
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.text(`TOTAL FINAL:`, 125, finalY + 16);
+        doc.text(formatCurrency(total), 185, finalY + 16, { align: "right" });
+
+        // ================= CONDICIONES COMERCIALES =================
+        doc.setTextColor(darkText[0], darkText[1], darkText[2]);
+        doc.setFontSize(10);
+        doc.text("CONDICIONES COMERCIALES", 15, finalY + 35);
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.text(`• Plazo de Entrega: ${commercialConditions.plazoEntrega} días corridos.`, 15, finalY + 42);
+        doc.text(`• Validez de la Oferta: ${commercialConditions.validezOferta} días corridos.`, 15, finalY + 47);
+        
+        let obsY = finalY + 52;
         if (commercialConditions.observaciones) {
-            doc.text(`- Observaciones: ${commercialConditions.observaciones}`, 20, finalY + 51);
+            const splitObs = doc.splitTextToSize(`• Observaciones Adicionales: ${commercialConditions.observaciones}`, 180);
+            doc.text(splitObs, 15, obsY);
+            obsY += splitObs.length * 5;
         }
 
-        doc.save(`Cotizacion_${licitacion.id}.pdf`);
+        // ================= FIRMA DIGITAL =================
+        doc.setDrawColor(203, 213, 225); // Slate 300
+        doc.line(75, 260, 135, 260); // Signature line
+        doc.setFont("helvetica", "bold");
+        doc.text(organization?.name || "Representante de la Empresa", 105, 266, { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.text(organization?.rut || "RUT Proveedor", 105, 271, { align: "center" });
+
+        doc.save(`Cotizacion_Oficial_${licitacion.id}.pdf`);
 
         toast({
-            title: "Cotización Descargada",
-            description: "El archivo PDF se ha generado correctamente.",
+            title: "Cotización Premium Descargada",
+            description: "El archivo PDF corporativo se ha generado correctamente con tu identidad.",
         });
     };
 
