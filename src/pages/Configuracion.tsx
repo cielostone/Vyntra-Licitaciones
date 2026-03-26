@@ -26,6 +26,12 @@ export default function Configuracion() {
   const [montoMin, setMontoMin] = useState("");
   const [montoMax, setMontoMax] = useState("");
 
+  // Company / Branding data
+  const [rutEmpresa, setRutEmpresa] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [firmaUrl, setFirmaUrl] = useState("");
+  const [savingCompany, setSavingCompany] = useState(false);
+
   useEffect(() => {
     if (!user) return;
     const fetchAll = async () => {
@@ -33,6 +39,14 @@ export default function Configuracion() {
       const { data: pData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       if (pData) {
         setProfile(pData);
+        if (pData.organization_id) {
+          const { data: oData } = await supabase.from('organizations').select('*').eq('id', pData.organization_id).single();
+          if (oData) {
+            setRutEmpresa(oData.rut || pData.company_rut || "");
+            setLogoUrl(oData.logo_url || "");
+            setFirmaUrl(oData.firma_url || "");
+          }
+        }
       }
 
       // 2. Fetch Match Configs
@@ -78,6 +92,30 @@ export default function Configuracion() {
       toast.error("Error al guardar tus preferencias de búsqueda.");
     } else {
       toast.success("¡Perfil de búsqueda actualizado exitosamente!");
+    }
+  };
+
+  const handleSaveCompanyConfig = async () => {
+    if (!profile?.organization_id) {
+      toast.error("Tu perfil aún no está vinculado a una organización.");
+      return;
+    }
+
+    setSavingCompany(true);
+
+    const { error } = await supabase.from('organizations').update({
+      rut: rutEmpresa,
+      logo_url: logoUrl,
+      firma_url: firmaUrl
+    }).eq('id', profile.organization_id);
+
+    setSavingCompany(false);
+
+    if (error) {
+      console.error(error);
+      toast.error("Error al actualizar la identidad comercial.");
+    } else {
+      toast.success("¡Identidad y sincronización actualizada!");
     }
   };
 
@@ -278,9 +316,58 @@ export default function Configuracion() {
                     <Input id="razon" value={profile?.company_name || ""} disabled className="bg-muted/50 text-muted-foreground border-transparent cursor-not-allowed" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="rut" className="text-sm font-medium">RUT Oficial Comercial</Label>
-                    <Input id="rut" value={profile?.company_rut || profile?.rut || ""} disabled className="bg-muted/50 text-muted-foreground border-transparent cursor-not-allowed" />
+                    <div className="flex items-center gap-2 mb-1">
+                      <Label htmlFor="rut" className="text-sm font-medium">RUT de Sincronización (Mercado Público)</Label>
+                    </div>
+                    <Input 
+                      id="rut" 
+                      value={rutEmpresa} 
+                      onChange={(e) => setRutEmpresa(e.target.value)} 
+                      placeholder="Ej: 76.123.456-K" 
+                      className="bg-background/80"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Este RUT se vincula con Mercado Público.</p>
                   </div>
+                </div>
+
+                <Separator className="my-2 bg-border/50" />
+                
+                <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
+                  <Target className="w-5 h-5 text-indigo-500" />
+                  Identidad Gráfica para Cotizaciones
+                </h3>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="logo" className="text-sm font-medium">Logo de Empresa (URL)</Label>
+                    <Input 
+                      id="logo" 
+                      value={logoUrl} 
+                      onChange={(e) => setLogoUrl(e.target.value)} 
+                      placeholder="https://tudominio.com/logo.png" 
+                      className="bg-background/80"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="firma" className="text-sm font-medium">Firma Digital (URL)</Label>
+                    <Input 
+                      id="firma" 
+                      value={firmaUrl} 
+                      onChange={(e) => setFirmaUrl(e.target.value)} 
+                      placeholder="https://tudominio.com/firma.png" 
+                      className="bg-background/80"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <Button 
+                    onClick={handleSaveCompanyConfig} 
+                    disabled={savingCompany}
+                    className="w-full sm:w-auto gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
+                  >
+                    {savingCompany && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Guardar Identidad Comercial
+                  </Button>
                 </div>
               </CardContent>
             </Card>
