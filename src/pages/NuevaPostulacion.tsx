@@ -20,7 +20,7 @@ export default function NuevaPostulacion() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { toast } = useToast();
-    const { saveDraft, getDraft, subscriptionPlan } = useVyntra();
+    const { saveDraft, getDraft, updateDraftStatus, subscriptionPlan } = useVyntra();
 
     // Cargar licitación desde la API real
     const [licitacion, setLicitacion] = useState<Licitacion | null>(null);
@@ -110,7 +110,8 @@ export default function NuevaPostulacion() {
             id,
             lastUpdated: new Date().toISOString(),
             items,
-            commercialConditions
+            commercialConditions,
+            status: 'draft'
         });
 
         toast({
@@ -254,9 +255,12 @@ export default function NuevaPostulacion() {
 
         doc.save(`Cotizacion_Oficial_${licitacion.id}.pdf`);
 
+        // Marcar automáticamente como enviada/postulada
+        updateDraftStatus(licitacion.id, 'submitted');
+
         toast({
             title: "Cotización Premium Descargada",
-            description: "El archivo PDF corporativo se ha generado correctamente con tu identidad.",
+            description: "El archivo PDF fue generado y tu postulación ha pasado a estado 'Enviada'.",
         });
     };
 

@@ -15,6 +15,7 @@ export interface Draft {
         validezOferta: string;
         observaciones: string;
     };
+    status?: 'draft' | 'submitted' | 'won' | 'lost'; // Estado del flujo de ventas B2B
 }
 
 interface VyntraContextType {
@@ -23,6 +24,7 @@ interface VyntraContextType {
     drafts: Draft[];
     saveDraft: (draft: Draft) => void;
     getDraft: (id: string) => Draft | undefined;
+    updateDraftStatus: (id: string, status: 'draft' | 'submitted' | 'won' | 'lost') => void;
     subscriptionPlan: SubscriptionPlan;
     setSubscriptionPlan: (plan: SubscriptionPlan) => void;
 }
@@ -81,6 +83,10 @@ export function VyntraProvider({ children }: { children: React.ReactNode }) {
         return drafts.find((d) => d.id === id);
     };
 
+    const updateDraftStatus = (id: string, status: 'draft' | 'submitted' | 'won' | 'lost') => {
+        setDrafts(prev => prev.map(d => d.id === id ? { ...d, status } : d));
+    };
+
     return (
         <VyntraContext.Provider
             value={{
@@ -89,6 +95,7 @@ export function VyntraProvider({ children }: { children: React.ReactNode }) {
                 drafts,
                 saveDraft,
                 getDraft,
+                updateDraftStatus,
                 subscriptionPlan,
                 setSubscriptionPlan,
             }}

@@ -1,4 +1,5 @@
-import { FolderOpen, Clock, CheckCircle2, XCircle, FileEdit, ArrowRight, Star } from "lucide-react";
+import { useState, useEffect } from "react";
+import { FolderOpen, Clock, CheckCircle2, XCircle, FileEdit, ArrowRight, Star, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,61 +7,96 @@ import { Button } from "@/components/ui/button";
 import { useVyntra } from "@/context/VyntraContext";
 import { Link } from "react-router-dom";
 import { licitaciones, formatDate } from "@/data/licitaciones";
-
-const postulaciones = [
-  {
-    id: "LP-2024-001456",
-    titulo: "Adquisición de equipamiento médico para hospitales regionales",
-    organismo: "Hospital Barros Luco",
-    fechaPostulacion: "2024-01-28",
-    estado: "En Revisión"
-  },
-  {
-    id: "LP-2024-001234",
-    titulo: "Provisión de servicios de seguridad y vigilancia",
-    organismo: "Municipalidad de Santiago",
-    fechaPostulacion: "2024-01-25",
-    estado: "Enviada"
-  },
-  {
-    id: "LP-2024-000987",
-    titulo: "Desarrollo de sistema de gestión integrado",
-    organismo: "Ministerio de Hacienda",
-    fechaPostulacion: "2024-01-15",
-    estado: "Aprobada"
-  }
-];
+import { fetchLicitacionesPorRut, fetchLicitacionPorCodigo } from "@/services/mercadoPublico";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const getStatusIcon = (estado: string) => {
   switch (estado) {
-    case "En Revisión":
-      return <Clock className="h-4 w-4" />;
-    case "Enviada":
-      return <FolderOpen className="h-4 w-4" />;
-    case "Aprobada":
-      return <CheckCircle2 className="h-4 w-4" />;
-    case "Rechazada":
-      return <XCircle className="h-4 w-4" />;
-    default:
-      return <FolderOpen className="h-4 w-4" />;
+    case "draft": return <FileEdit className="h-4 w-4" />;
+    case "submitted": return <Clock className="h-4 w-4" />;
+    case "won": return <CheckCircle2 className="h-4 w-4" />;
+    case "lost": return <XCircle className="h-4 w-4" />;
+    default: return <FolderOpen className="h-4 w-4" />;
   }
 };
 
 const getStatusVariant = (estado: string) => {
   switch (estado) {
-    case "Aprobada":
-      return "open";
-    case "En Revisión":
-      return "warning";
-    case "Rechazada":
-      return "destructive";
-    default:
-      return "secondary";
+    case "won": return "open";
+    case "submitted": return "warning";
+    case "lost": return "destructive";
+    default: return "secondary";
+  }
+};
+
+const getStatusLabel = (estado: string) => {
+  switch (estado) {
+    case "won": return "Adjudicada / Ganada";
+    case "submitted": return "En Revisión (M.P)";
+    case "lost": return "No Adjudicada";
+    case "draft": return "Borrador";
+    default: return "Desconocido";
   }
 };
 
 export default function Postulaciones() {
-  const { drafts, favorites } = useVyntra();
+  const { drafts, favorites, updateDraftStatus } = useVyntra();
+  const { toast } = useToast();
+  const [syncing, setSyncing] = useState(false);
+
+  const activas = drafts.filter(d => d.status === 'submitted');
+  const borradoresList = drafts.filter(d => !d.status || d.status === 'draft');
+  const historialList = drafts.filter(d => d.status === 'won' || d.status === 'lost');
+
+  useEffect(() => {
+    // AUTO-PILOT B2B Logic
+    const runAutoPilot = async () => {
+      // Solo correr si hay activas pendientes de revisión
+      if (activas.length === 0) return;
+      
+      setSyncing(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: pData } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
+        if (!pData?.organization_id) return;
+        const { data: oData } = await supabase.from('organizations').select('rut').eq('id', pData.organization_id).single();
+        if (!oData?.rut) return;
+
+        // Historial completo del RUT de la empresa
+        const mpHistory = await fetchLicitacionesPorRut(oData.rut);
+        const wonIds = new Set(mpHistory.map(h => h.id));
+
+        for (const draft of activas) {
+           if (wonIds.has(draft.id)) {
+               updateDraftStatus(draft.id, 'won');
+               toast({ 
+                 title: "¡Licitación Adjudicada! 🎉", 
+                 description: `Felicidades, la licitación ${draft.id} fue adjudicada a tu RUT.`,
+                 variant: "default" 
+               });
+           } else {
+               // ¿Alguien más la ganó o se cerró sin adjudicar?
+               const details = await fetchLicitacionPorCodigo(draft.id);
+               if (details && (details.estado === 'Adjudicada' || details.estado === 'Cerrada' || details.estado === 'Desierta' || details.estado === 'Revocada')) {
+                   updateDraftStatus(draft.id, 'lost');
+                   toast({ 
+                     title: "Proceso Finalizado", 
+                     description: `La licitación ${draft.id} (${details.estado}) concluyó y no resultaste ganador.`,
+                     variant: "destructive"
+                   });
+               }
+           }
+        }
+      } catch (e) {
+        console.error("AutoPilot Error", e);
+      } finally {
+        setSyncing(false);
+      }
+    };
+    runAutoPilot();
+  }, [activas.length, updateDraftStatus, toast]); // Dependency array considers length to run once when active components mount
 
   const favoriteLicitaciones = licitaciones.filter(l => favorites.includes(l.id));
 
@@ -111,37 +147,35 @@ export default function Postulaciones() {
 
         <TabsContent value="activas" className="mt-0 outline-none">
           <div className="grid gap-4">
-            {postulaciones.map((postulacion, index) => (
+            {activas.map((draft, index) => (
               <div
-                key={postulacion.id}
+                key={draft.id}
                 className="group relative overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white/70 dark:bg-card/40 backdrop-blur-xl p-6 transition-all duration-300 hover:border-indigo-500/30 hover:shadow-xl animate-in fade-in slide-in-from-bottom-4"
                 style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' }}
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between relative z-10">
                   <div className="flex-1 space-y-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-md">{postulacion.id}</span>
-                      <Badge variant={getStatusVariant(postulacion.estado) as any} className="font-bold border-none capitalize px-3 py-1 gap-1.5 shadow-sm">
-                        {getStatusIcon(postulacion.estado)}
-                        {postulacion.estado}
+                      <span className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-md">{draft.id}</span>
+                      <Badge variant={getStatusVariant(draft.status || 'draft') as any} className="font-bold border-none capitalize px-3 py-1 gap-1.5 shadow-sm">
+                        {getStatusIcon(draft.status || 'draft')}
+                        {getStatusLabel(draft.status || 'draft')}
                       </Badge>
+                      {syncing && <Loader2 className="h-4 w-4 animate-spin text-indigo-500" />}
                     </div>
                     <h3 className="text-xl font-bold text-foreground leading-tight tracking-tight group-hover:text-indigo-500 transition-colors">
-                      {postulacion.titulo}
+                      Postulación Enviada (Esperando Resultados API)
                     </h3>
-                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                       {postulacion.organismo}
-                    </p>
                   </div>
                   <div className="text-sm font-semibold text-slate-400 bg-slate-100 dark:bg-white/5 py-1.5 px-3 rounded-lg border border-slate-200 dark:border-white/10 whitespace-nowrap">
-                    Postulado: {new Date(postulacion.fechaPostulacion).toLocaleDateString('es-CL')}
+                    Enviada: {new Date(draft.lastUpdated).toLocaleDateString('es-CL')}
                   </div>
                 </div>
               </div>
             ))}
           </div>
 
-          {postulaciones.length === 0 && (
+          {activas.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center animate-in zoom-in-95 duration-500 border border-dashed border-slate-200 dark:border-white/10 rounded-3xl bg-white/30 dark:bg-card/20 backdrop-blur-sm">
               <FolderOpen className="h-16 w-16 text-slate-300 dark:text-slate-600 mb-6 drop-shadow-sm" />
               <p className="text-xl font-bold text-foreground">Sin postulaciones activas</p>
@@ -154,7 +188,7 @@ export default function Postulaciones() {
 
         <TabsContent value="borradores" className="mt-0 outline-none">
           <div className="grid gap-4">
-            {drafts.map((draft, index) => (
+            {borradoresList.map((draft, index) => (
               <div
                 key={draft.id}
                 className="group relative overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white/70 dark:bg-card/40 backdrop-blur-xl p-6 transition-all duration-300 hover:border-indigo-500/30 hover:shadow-xl animate-in fade-in slide-in-from-bottom-4"
@@ -189,7 +223,7 @@ export default function Postulaciones() {
             ))}
           </div>
 
-          {drafts.length === 0 && (
+          {borradoresList.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center animate-in zoom-in-95 duration-500 border border-dashed border-slate-200 dark:border-white/10 rounded-3xl bg-white/30 dark:bg-card/20 backdrop-blur-sm">
               <FileEdit className="h-16 w-16 text-slate-300 dark:text-slate-600 mb-6 drop-shadow-sm" />
               <p className="text-xl font-bold text-foreground">No tienes borradores guardados</p>
@@ -249,13 +283,43 @@ export default function Postulaciones() {
         </TabsContent>
 
         <TabsContent value="historial" className="mt-0 outline-none">
-          <div className="flex flex-col items-center justify-center py-24 text-center animate-in zoom-in-95 duration-500 border border-dashed border-slate-200 dark:border-white/10 rounded-3xl bg-white/30 dark:bg-card/20 backdrop-blur-sm">
-            <Clock className="h-16 w-16 text-slate-300 dark:text-slate-600 mb-6 drop-shadow-sm" />
-            <p className="text-xl font-bold text-foreground">Aún no hay registros de actividades</p>
-            <p className="mt-2 text-base font-medium text-muted-foreground w-2/3 mx-auto">
-              Cuando adjudiques, pierdas, o se completen licitaciones, se archivarán en esta sección permanentemente.
-            </p>
+          <div className="grid gap-4">
+            {historialList.map((draft, index) => (
+              <div
+                key={draft.id}
+                className="group relative overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white/70 dark:bg-card/40 backdrop-blur-xl p-6 transition-all duration-300 hover:shadow-xl animate-in fade-in slide-in-from-bottom-4"
+                style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'backwards' }}
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between relative z-10">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-mono font-bold text-slate-600 dark:text-slate-400 bg-slate-500/10 px-2 py-1 rounded-md">{draft.id}</span>
+                      <Badge variant={getStatusVariant(draft.status || 'lost') as any} className="font-bold border-none capitalize px-3 py-1 gap-1.5 shadow-sm">
+                        {getStatusIcon(draft.status || 'lost')}
+                        {getStatusLabel(draft.status || 'lost')}
+                      </Badge>
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground leading-tight tracking-tight">
+                      Proceso Finalizado
+                    </h3>
+                  </div>
+                  <div className="text-sm font-semibold text-slate-400 bg-slate-100 dark:bg-white/5 py-1.5 px-3 rounded-lg border border-slate-200 dark:border-white/10 whitespace-nowrap">
+                    Actualizado: {new Date(draft.lastUpdated).toLocaleDateString('es-CL')}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
+
+          {historialList.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-24 text-center animate-in zoom-in-95 duration-500 border border-dashed border-slate-200 dark:border-white/10 rounded-3xl bg-white/30 dark:bg-card/20 backdrop-blur-sm">
+              <Clock className="h-16 w-16 text-slate-300 dark:text-slate-600 mb-6 drop-shadow-sm" />
+              <p className="text-xl font-bold text-foreground">Aún no hay registros de actividades</p>
+              <p className="mt-2 text-base font-medium text-muted-foreground w-2/3 mx-auto">
+                Cuando adjudiques, pierdas, o se completen licitaciones, se archivarán en esta sección permanentemente gracias al Auto-Pilot.
+              </p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
