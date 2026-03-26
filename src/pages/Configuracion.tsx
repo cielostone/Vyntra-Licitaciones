@@ -11,6 +11,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+const DEFAULT_AVATARS = [
+  "https://api.dicebear.com/7.x/shapes/svg?seed=vyntra1&backgroundColor=4f46e5",
+  "https://api.dicebear.com/7.x/shapes/svg?seed=vyntra2&backgroundColor=0ea5e9",
+  "https://api.dicebear.com/7.x/shapes/svg?seed=vyntra3&backgroundColor=10b981",
+  "https://api.dicebear.com/7.x/shapes/svg?seed=vyntra4&backgroundColor=f59e0b",
+  "https://api.dicebear.com/7.x/shapes/svg?seed=vyntra5&backgroundColor=e11d48",
+  "https://ui.shadcn.com/avatars/02.png"
+];
+
 export default function Configuracion() {
   const { user } = useAuth();
   const [profileLoading, setProfileLoading] = useState(true);
@@ -32,6 +41,18 @@ export default function Configuracion() {
   const [firmaUrl, setFirmaUrl] = useState("");
   const [savingCompany, setSavingCompany] = useState(false);
 
+  // Alarms and Notifications data
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [alertsWhatsapp, setAlertsWhatsapp] = useState(false);
+  const [alertsEmail, setAlertsEmail] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // User Profile Customization
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [age, setAge] = useState("");
+  const [savingUserConfig, setSavingUserConfig] = useState(false);
+
   useEffect(() => {
     if (!user) return;
     const fetchAll = async () => {
@@ -39,6 +60,13 @@ export default function Configuracion() {
       const { data: pData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       if (pData) {
         setProfile(pData);
+        setWhatsappNumber(pData.whatsapp_number || "");
+        setAlertsWhatsapp(pData.alerts_whatsapp || false);
+        setAlertsEmail(pData.alerts_email || false);
+        setAvatarUrl(pData.avatar_url || "");
+        setNickname(pData.nickname || "");
+        setAge(pData.age || "");
+        
         if (pData.organization_id) {
           const { data: oData } = await supabase.from('organizations').select('*').eq('id', pData.organization_id).single();
           if (oData) {
@@ -116,6 +144,42 @@ export default function Configuracion() {
       toast.error("Error al actualizar la identidad comercial.");
     } else {
       toast.success("¡Identidad y sincronización actualizada!");
+    }
+  };
+
+  const handleSaveNotifications = async () => {
+    setSavingSettings(true);
+    const { error } = await supabase.from('profiles').update({
+      whatsapp_number: whatsappNumber,
+      alerts_whatsapp: alertsWhatsapp,
+      alerts_email: alertsEmail
+    }).eq('id', user?.id);
+    
+    setSavingSettings(false);
+    
+    if (error) {
+      console.error(error);
+      toast.error("Error al guardar configuraciones del sistema. Asegúrate de haber ejecutado la migración Fase 3 en tu base de datos.");
+    } else {
+      toast.success("¡Preferencias de Alarma actualizadas!");
+    }
+  };
+
+  const handleSaveUserConfig = async () => {
+    setSavingUserConfig(true);
+    const { error } = await supabase.from('profiles').update({
+      avatar_url: avatarUrl,
+      nickname: nickname,
+      age: age
+    }).eq('id', user?.id);
+    
+    setSavingUserConfig(false);
+    
+    if (error) {
+      console.error(error);
+      toast.error("Error al guardar perfil. Asegúrate de ejecutar la migración SQL extra.");
+    } else {
+      toast.success("¡Perfil Personalizado Guardado!");
     }
   };
 
@@ -276,7 +340,7 @@ export default function Configuracion() {
                   </div>
                   <div>
                     <CardTitle className="text-xl">Datos del Usuario</CardTitle>
-                    <CardDescription>Tu identidad dentro de Vyntra.</CardDescription>
+                    <CardDescription>Tu identidad y personalización dentro de Vyntra.</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -290,6 +354,76 @@ export default function Configuracion() {
                     <Label htmlFor="email" className="text-sm font-medium">Correo Electrónico (Login)</Label>
                     <Input id="email" value={profile?.email || ""} disabled className="bg-muted/50 text-muted-foreground border-transparent cursor-not-allowed" />
                   </div>
+                </div>
+
+                <Separator className="my-2 bg-border/50" />
+                <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
+                  <User className="w-5 h-5 text-indigo-500" />
+                  Personalización del Avatar
+                </h3>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="avatar" className="text-sm font-medium">Avatar Personal (URL)</Label>
+                      <Input 
+                        id="avatar" 
+                        value={avatarUrl} 
+                        onChange={(e) => setAvatarUrl(e.target.value)} 
+                        placeholder="https://tudominio.com/tu-foto.jpg" 
+                        className="bg-background/80"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2 bg-muted/20 p-3 rounded-lg border border-border/30">
+                      <Label className="text-xs text-muted-foreground block">O selecciona un avatar abstracto rápido:</Label>
+                      <div className="flex flex-wrap gap-2">
+                         {DEFAULT_AVATARS.map((url, i) => (
+                           <div 
+                             key={i} 
+                             onClick={() => setAvatarUrl(url)}
+                             className={`h-10 w-10 rounded-full border-2 cursor-pointer transition-all bg-white/5 ${avatarUrl === url ? 'border-primary ring-2 ring-primary/20 scale-110 shadow-lg' : 'border-transparent hover:scale-105 opacity-70 hover:opacity-100'}`}
+                           >
+                             <img src={url} alt={`Avatar ${i+1}`} className="rounded-full w-full h-full object-cover p-1" />
+                           </div>
+                         ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="nickname" className="text-sm font-medium">Cargo o Apodo</Label>
+                      <Input 
+                        id="nickname" 
+                        value={nickname} 
+                        onChange={(e) => setNickname(e.target.value)} 
+                        placeholder="Ej: CEO, Account Manager..." 
+                        className="bg-background/80"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="age" className="text-sm font-medium">Edad o Cumpleaños</Label>
+                      <Input 
+                        id="age" 
+                        value={age} 
+                        onChange={(e) => setAge(e.target.value)} 
+                        placeholder="Ej: 32 años" 
+                        className="bg-background/80"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <Button 
+                    onClick={handleSaveUserConfig} 
+                    disabled={savingUserConfig}
+                    className="w-full sm:w-auto gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
+                  >
+                    {savingUserConfig && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Guardar Perfil de Usuario
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -334,21 +468,23 @@ export default function Configuracion() {
                 
                 <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
                   <Target className="w-5 h-5 text-indigo-500" />
-                  Identidad Gráfica para Cotizaciones
+                  Timbres Corporativos
                 </h3>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="logo" className="text-sm font-medium">Logo de Empresa (URL)</Label>
+                    <Label htmlFor="logo" className="text-sm font-medium">Logo Oficial de la Empresa (URL)</Label>
                     <Input 
                       id="logo" 
                       value={logoUrl} 
                       onChange={(e) => setLogoUrl(e.target.value)} 
-                      placeholder="https://tudominio.com/logo.png" 
+                      placeholder="https://tudominio.com/logo_corporativo.png" 
                       className="bg-background/80"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Este logo se imprimirá en los PDFs de cotización B2B.</p>
                   </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="firma" className="text-sm font-medium">Firma Digital (URL)</Label>
+                    <Label htmlFor="firma" className="text-sm font-medium">Firma Digital del Representante (URL)</Label>
                     <Input 
                       id="firma" 
                       value={firmaUrl} 
@@ -376,27 +512,54 @@ export default function Configuracion() {
           {/* TAB: NOTIFICATIONS & SYSTEM */}
           <TabsContent value="notifications" className="focus-visible:outline-none animate-in fade-in-50 slide-in-from-bottom-2 duration-500">
             <div className="grid gap-6 md:grid-cols-2">
-              <Card className="border-border/60 bg-card/80 backdrop-blur-md shadow-lg rounded-2xl">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2"><Bell className="w-5 h-5 text-indigo-500" /> Alertas del Sistema</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">Oportunidades Inmediatas</p>
-                      <p className="text-sm text-muted-foreground">Notificar sobre licitaciones que hacen Match 100%.</p>
+              <Card className="border-border/60 bg-card/80 backdrop-blur-md shadow-lg rounded-2xl flex flex-col justify-between">
+                <div>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Bell className="w-5 h-5 text-indigo-500" /> Alertas B2B</CardTitle>
+                    <CardDescription>Configura alarmas automatizadas de tus oportunidades.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-foreground">Avisos por Correo (Email)</p>
+                        <p className="text-sm text-muted-foreground">Notificaciones diarias sobre licitaciones.</p>
+                      </div>
+                      <Switch checked={alertsEmail} onCheckedChange={setAlertsEmail} />
                     </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <Separator className="bg-border/50" />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">Alerta de Vencimientos</p>
-                      <p className="text-sm text-muted-foreground">Correos a las 48h antes de que cierre un favorito.</p>
+                    <Separator className="bg-border/50" />
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-foreground">Alertas Flash WhatsApp</p>
+                          <p className="text-sm text-muted-foreground">Mensajes instantáneos en aperturas clave.</p>
+                        </div>
+                        <Switch checked={alertsWhatsapp} onCheckedChange={setAlertsWhatsapp} />
+                      </div>
+                      {alertsWhatsapp && (
+                         <div className="mt-2 space-y-2 bg-indigo-500/5 p-3 rounded-lg border border-indigo-500/20">
+                           <Label htmlFor="whatsapp" className="text-xs font-semibold text-indigo-500 uppercase tracking-widest">Número Asociado</Label>
+                           <Input 
+                             id="whatsapp"
+                             placeholder="+56 9 1234 5678"
+                             value={whatsappNumber}
+                             onChange={(e) => setWhatsappNumber(e.target.value)}
+                             className="bg-background/80"
+                           />
+                         </div>
+                      )}
                     </div>
-                    <Switch defaultChecked />
-                  </div>
-                </CardContent>
+                  </CardContent>
+                </div>
+                <CardFooter className="bg-muted/30 border-t border-border/50 rounded-b-xl px-6 py-4 mt-4">
+                  <Button 
+                     onClick={handleSaveNotifications}
+                     disabled={savingSettings}
+                     className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
+                  >
+                     {savingSettings && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                     Guardar Preferencias
+                  </Button>
+                </CardFooter>
               </Card>
 
               <Card className="border-border/60 bg-card/80 backdrop-blur-md shadow-lg rounded-2xl">

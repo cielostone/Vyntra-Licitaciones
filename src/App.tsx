@@ -15,6 +15,8 @@ import NotFound from "./pages/NotFound";
 import NuevaPostulacion from "./pages/NuevaPostulacion";
 import Suscripcion from "./pages/Suscripcion";
 import Login from "./pages/Login";
+import FAQ from "./pages/FAQ";
+import Agenda from "./pages/Agenda";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +39,8 @@ const App = () => (
               <Route path="/postular/:id" element={<PrivateRoute><Layout><NuevaPostulacion /></Layout></PrivateRoute>} />
               <Route path="/suscripcion" element={<PrivateRoute><Layout><Suscripcion /></Layout></PrivateRoute>} />
               <Route path="/configuracion" element={<PrivateRoute><Layout><Configuracion /></Layout></PrivateRoute>} />
+              <Route path="/faq" element={<PrivateRoute><Layout><FAQ /></Layout></PrivateRoute>} />
+              <Route path="/agenda" element={<PrivateRoute><Layout><Agenda /></Layout></PrivateRoute>} />
               <Route path="*" element={<PrivateRoute><Layout><NotFound /></Layout></PrivateRoute>} />
             </Routes>
           </BrowserRouter>

@@ -3,13 +3,13 @@ import { TrendingUp, DollarSign, Target, CalendarClock, ArrowRight, Activity, Za
 import { StatCard } from "@/components/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { formatCurrency, calculateTax } from "@/data/licitaciones";
 import { Link } from "react-router-dom";
 import { useLicitaciones } from "@/hooks/useLicitaciones";
-import { Loader2 } from "lucide-react";
-
+import { Loader2, Trophy, Sparkles, Bot, Search, MessageSquare, FileText } from "lucide-react";
 export default function Dashboard() {
   const { licitaciones, loading } = useLicitaciones();
 
@@ -28,6 +28,12 @@ export default function Dashboard() {
   // Metas (Simuladas)
   const metaMensual = 100000000; // 100M
   const progresoMeta = Math.min((recaudacionTotalNeto / metaMensual) * 100, 100);
+
+  // Tasa de Éxito (Win-Rate B2B)
+  const licitacionesCerradas = licitaciones.filter(l => l.estado === "Cerrada" || l.estado === "Desierta" || l.estado === "Adjudicada");
+  const winRate = licitacionesCerradas.length > 0 
+    ? ((adjudicadas.length / licitacionesCerradas.length) * 100).toFixed(1) 
+    : "0.0";
 
   return (
     <div className="p-4 md:p-8 lg:p-10 space-y-10 max-w-7xl mx-auto">
@@ -93,35 +99,87 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Second Row: Insights */}
-      <div className="grid gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
-        <Card className="relative overflow-hidden border-indigo-500/10 bg-gradient-to-br from-card/80 to-indigo-900/5 backdrop-blur-xl shadow-xl rounded-2xl">
-          <div className="absolute inset-0 bg-grid-slate-900/[0.04] bg-[size:16px_16px] dark:bg-grid-white/[0.02]" />
-          <CardHeader className="relative z-10">
+      {/* Second Row: Advanced Insights B2B */}
+      <div className="grid gap-6 md:grid-cols-2 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300 items-start">
+        
+        {/* Copiloto IA Vyntra */}
+        <Card className="relative overflow-hidden border-indigo-500/20 bg-card/80 backdrop-blur-xl shadow-xl rounded-2xl h-full lg:col-span-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5" />
+          <CardHeader className="relative z-10 pb-2">
             <CardTitle className="flex items-center gap-3 text-xl font-bold">
-              <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                <CalendarClock className="h-5 w-5 text-indigo-500" />
+              <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20 text-indigo-500">
+                <Sparkles className="h-5 w-5" />
               </div>
-              Insight: Horario Óptimo
+              Copiloto IA Vyntra
             </CardTitle>
-            <CardDescription className="text-base font-medium">
-              Vyntra ha detectado un patrón de alta conversión en tus últimas ofertas.
+            <CardDescription className="text-sm font-medium">
+              Asistente estratégico para análisis y redacción B2B.
             </CardDescription>
           </CardHeader>
-          <CardContent className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pt-4">
-            <div className="space-y-1">
-              <p className="text-4xl font-black tracking-tight text-foreground">10:00 <span className="text-2xl text-muted-foreground">AM</span> - 12:30 <span className="text-2xl text-muted-foreground">PM</span></p>
-              <div className="inline-flex items-center gap-1 text-sm font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md mt-2">
-                <TrendingUp className="h-4 w-4" />
-                +35% de éxito histórico en este lapso
+          <CardContent className="relative z-10 pt-4 pb-6 space-y-4">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
+              <div className="relative flex items-center bg-background border border-indigo-500/30 rounded-xl px-2 shadow-sm">
+                <Bot className="h-5 w-5 text-indigo-400 ml-2" />
+                <Input 
+                  placeholder="¿Qué necesitas analizar o redactar hoy...?"
+                  className="border-none focus-visible:ring-0 bg-transparent text-sm h-12"
+                />
+                <Button size="icon" className="h-8 w-8 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shrink-0 mr-1">
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
               </div>
             </div>
-            <Button className="w-full sm:w-auto bg-foreground text-background hover:bg-foreground/90 h-12 px-6 rounded-xl font-bold shadow-xl shadow-foreground/20 transition-all hover:scale-105 active:scale-95">
-              Agendar Bloque
-            </Button>
+            
+            <div className="flex flex-col gap-2 pt-2">
+              <button className="flex items-center gap-2 text-sm font-semibold text-muted-foreground bg-muted/30 hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors p-3 rounded-xl border border-transparent hover:border-indigo-500/20 text-left">
+                <FileText className="h-4 w-4 text-indigo-400 shrink-0" />
+                Redactar resumen ejecutivo para licitación...
+              </button>
+              <button className="flex items-center gap-2 text-sm font-semibold text-muted-foreground bg-muted/30 hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors p-3 rounded-xl border border-transparent hover:border-indigo-500/20 text-left">
+                <Search className="h-4 w-4 text-indigo-400 shrink-0" />
+                Encontrar oportunidades abiertas hoy en mi rubro
+              </button>
+              <button className="flex items-center gap-2 text-sm font-semibold text-muted-foreground bg-muted/30 hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors p-3 rounded-xl border border-transparent hover:border-indigo-500/20 text-left">
+                <MessageSquare className="h-4 w-4 text-indigo-400 shrink-0" />
+                Evaluar riesgo comercial según anexos técnicos...
+              </button>
+            </div>
           </CardContent>
         </Card>
 
+        {/* Win Rate Insight */}
+        <Card className="relative overflow-hidden border-indigo-500/10 bg-gradient-to-br from-card/80 to-indigo-900/5 backdrop-blur-xl shadow-xl rounded-2xl h-full">
+          <div className="absolute inset-0 bg-grid-slate-900/[0.04] bg-[size:16px_16px] dark:bg-grid-white/[0.02]" />
+          <CardHeader className="relative z-10 pb-2">
+            <CardTitle className="flex items-center gap-3 text-xl font-bold">
+              <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20 text-indigo-500">
+                <Trophy className="h-5 w-5" />
+              </div>
+              Tasa de Éxito (Win-Rate)
+            </CardTitle>
+            <CardDescription className="text-sm font-medium">
+              Conversión histórica de tus cotizaciones vs adjudicaciones.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="relative z-10 pt-4 pb-6">
+            <div className="space-y-4">
+              <div className="flex items-baseline gap-2">
+                 <p className="text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-violet-500">
+                   {winRate}%
+                 </p>
+              </div>
+              <p className="text-sm text-foreground/80 font-medium leading-relaxed">
+                El algoritmo calcula tu eficacia cruzando cuántas de tus propuestas se adjudicaron, versus todas las licitaciones que cotizaste y se cerraron.
+              </p>
+              <Progress value={Number(winRate)} className="h-3 my-6 rounded-full" indicatorClassName="bg-gradient-to-r from-indigo-500 to-violet-500" />
+              <div className="flex gap-2 text-sm">
+                 <Badge variant="outline" className="border-indigo-500/20 text-indigo-500 font-bold bg-indigo-500/10">Histórico: +3.2%</Badge>
+                 <Badge variant="outline" className="text-muted-foreground">Último trimestre</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Recent Activity Table */}
