@@ -203,7 +203,24 @@ export default function Oportunidades() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-              {paginatedLicitaciones.map((licitacion, index) => {
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-24 text-center">
+                    <div className="flex flex-col items-center justify-center gap-4 text-indigo-500 dark:text-indigo-400">
+                      <Loader2 className="h-10 w-10 animate-spin" />
+                      <p className="font-bold text-lg text-foreground">Sincronizando Radar de Oportunidades...</p>
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Conectando a Mercado Público, por favor espera un momento.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedLicitaciones.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-24 text-center text-slate-500 font-medium text-lg">
+                    No se encontraron licitaciones en este momento.
+                  </td>
+                </tr>
+              ) : (
+                paginatedLicitaciones.map((licitacion, index) => {
                 const matchScore = calculateMatchScore(licitacion);
                 const isFavorite = favorites.includes(licitacion.id);
 
@@ -311,7 +328,8 @@ export default function Oportunidades() {
                     </td>
                   </tr>
                 );
-              })}
+              })
+            )}
             </tbody>
           </table>
         </div>
