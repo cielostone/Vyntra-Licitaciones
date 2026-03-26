@@ -21,6 +21,9 @@ create table if not exists organizations (
   id              uuid primary key default gen_random_uuid(),
   name            text not null,
   rut             text unique,                        -- RUT empresa (ej. "76.543.210-K")
+  logo_url        text,                               -- URL del logo para cotizaciones PDF
+  firma_url       text,                               -- URL de firma digitalizada para cotizaciones PDF
+  condiciones_default jsonb,                          -- Condiciones comerciales por defecto
   plan            text not null default 'free'
                     check (plan in ('free', 'pro', 'enterprise')),
   plan_expires_at timestamptz,                        -- NULL = sin vencimiento (free)

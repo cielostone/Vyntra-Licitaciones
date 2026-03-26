@@ -160,3 +160,20 @@ export async function fetchLicitacionPorCodigo(codigo: string): Promise<Licitaci
     fuente_url:       `https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion=${encodeURIComponent(item.CodigoExterno)}`,
   };
 }
+
+// ─────────────────────────────────────────────
+// Obtener historial de licitaciones por RUT Proveedor
+// Permite extraer el radar de antecedentes de la empresa
+// ─────────────────────────────────────────────
+export async function fetchLicitacionesPorRut(rutProveedor: string): Promise<Licitacion[]> {
+  if (!TICKET) throw new Error("VITE_MERCADO_PUBLICO_TICKET no está configurado");
+
+  // El RUT en MP debe ir sin puntos y con guion. Ej: 76123456-K
+  const cleanRut = rutProveedor.replace(/\./g, "").toUpperCase();
+  const url = `${BASE_URL}/licitaciones.json?rutproveedor=${cleanRut}&ticket=${TICKET}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Error API MP Proveedor: ${response.status}`);
+
+  const json = await response.json();
+  return (json?.Listado ?? []).map(mapLicitacionListado);
+}
