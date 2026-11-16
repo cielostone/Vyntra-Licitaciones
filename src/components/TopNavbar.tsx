@@ -119,7 +119,7 @@ export function TopNavbar() {
           {/* Opciones Avanzadas (Hamburguesa de escritorio) */}
           <div className="hidden sm:flex items-center gap-2">
             <Badge variant="outline" className="border-indigo-500/30 text-indigo-400 bg-indigo-500/10 uppercase font-bold text-[10px] tracking-wider px-2 py-0.5 shadow-inner">
-              PRO
+              {subscriptionPlan}
             </Badge>
 
             {/* Hub de Herramientas y Ajustes */}

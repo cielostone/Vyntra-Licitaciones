@@ -1,39 +1,53 @@
-import React from "react";
-import { TrendingUp, DollarSign, Target, CalendarClock, ArrowRight, Activity, Zap } from "lucide-react";
+import React, { useEffect } from "react";
+import { CalendarClock, ArrowRight, Activity, Zap, Radar, FileCheck2 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { formatCurrency, calculateTax } from "@/data/licitaciones";
+import { formatCurrency } from "@/data/licitaciones";
+import { useVyntra } from "@/context/VyntraContext";
+import { useMatchProfile } from "@/hooks/useMatchProfile";
+import { calculateMatch } from "@/lib/matching";
 import { Link } from "react-router-dom";
 import { useLicitaciones } from "@/hooks/useLicitaciones";
 import { Loader2, Trophy, Sparkles, Bot, Search, MessageSquare, FileText } from "lucide-react";
 export default function Dashboard() {
-  const { licitaciones, loading } = useLicitaciones();
+  const { licitaciones, loading, prefetchDetalles } = useLicitaciones();
+  const { drafts } = useVyntra();
+  const { profile: matchProfile } = useMatchProfile();
+
+  const recentLicitaciones = licitaciones.slice(0, 5);
+  const recentIds = recentLicitaciones.map((l) => l.id).join(",");
+  // Los hooks van ANTES del return de carga (si no, React se cae al terminar de cargar)
+  useEffect(() => {
+    if (!recentIds) return;
+    const signal = { cancelled: false };
+    prefetchDetalles(recentIds.split(","), signal);
+    return () => { signal.cancelled = true; };
+  }, [recentIds, prefetchDetalles]);
 
   if (loading) {
     return <div className="flex h-[80vh] items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-indigo-500 opacity-50" /></div>;
   }
 
-  const recentLicitaciones = licitaciones.slice(0, 5);
+  // KPIs reales: mercado en vivo + postulaciones propias
+  const compatibles = matchProfile
+    ? licitaciones.filter((l) => (calculateMatch(l, matchProfile)?.score ?? 0) >= 50)
+    : [];
+  const enSieteDias = (fecha: string) => {
+    const dias = (new Date(fecha).getTime() - Date.now()) / 86_400_000;
+    return dias >= 0 && dias <= 7;
+  };
+  const cierranPronto = (matchProfile ? compatibles : licitaciones).filter((l) => enSieteDias(l.fechaCierre));
+  const enviadas = drafts.filter((d) => d.status === "submitted").length;
+  const borradores = drafts.filter((d) => !d.status || d.status === "draft").length;
 
-  // KPIs Financieros
-  const adjudicadas = licitaciones.filter(l => l.estado === "Adjudicada");
-  const recaudacionTotalNeto = adjudicadas.reduce((acc, l) => acc + Number(l.montoEstimado), 0);
-  const ivaDebitoAcumulado = calculateTax(recaudacionTotalNeto);
-  const flujoMensual = recaudacionTotalNeto * 1.19; // Bruto
-
-  // Metas (Simuladas)
-  const metaMensual = 100000000; // 100M
-  const progresoMeta = Math.min((recaudacionTotalNeto / metaMensual) * 100, 100);
-
-  // Tasa de Éxito (Win-Rate B2B)
-  const licitacionesCerradas = licitaciones.filter(l => l.estado === "Cerrada" || l.estado === "Desierta" || l.estado === "Adjudicada");
-  const winRate = licitacionesCerradas.length > 0 
-    ? ((adjudicadas.length / licitacionesCerradas.length) * 100).toFixed(1) 
-    : "0.0";
+  // Tasa de éxito: postulaciones propias ganadas / terminadas
+  const ganadas = drafts.filter((d) => d.status === "won").length;
+  const terminadas = ganadas + drafts.filter((d) => d.status === "lost").length;
+  const winRate = terminadas > 0 ? ((ganadas / terminadas) * 100).toFixed(1) : "0.0";
 
   return (
     <div className="p-4 md:p-8 lg:p-10 space-y-10 max-w-7xl mx-auto">
@@ -58,45 +72,29 @@ export default function Dashboard() {
       {/* Financial KPIs */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-150">
         <StatCard
-          title="Recaudación Neta"
-          value={formatCurrency(recaudacionTotalNeto)}
-          subtitle="Ingresos adjudicados este mes"
-          icon={DollarSign}
-          trend={{ value: 15, positive: true }}
-        />
-        <StatCard
-          title="IVA Débito"
-          value={formatCurrency(ivaDebitoAcumulado)}
-          subtitle="Provisión fiscal (19%)"
+          title="Licitaciones activas"
+          value={licitaciones.length.toLocaleString("es-CL")}
+          subtitle="En vivo desde Mercado Público"
           icon={Activity}
         />
         <StatCard
-          title="Flujo Estimado"
-          value={formatCurrency(flujoMensual)}
-          subtitle="Bruto proyectado"
-          icon={TrendingUp}
+          title="Compatibles contigo"
+          value={matchProfile ? compatibles.length.toLocaleString("es-CL") : "—"}
+          subtitle={matchProfile ? "Calce de 50% o más con tu perfil" : "Configura tu perfil en Configuración"}
+          icon={Radar}
         />
-        
-        {/* Goal Card Premium */}
-        <Card className="group relative overflow-hidden rounded-2xl border-indigo-500/20 bg-card/60 backdrop-blur-xl shadow-lg hover:shadow-indigo-500/10 transition-all duration-500">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-indigo-500/20 transition-colors duration-500" />
-          <CardHeader className="relative z-10 flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Meta Mensual</CardTitle>
-            <Target className="h-5 w-5 text-indigo-500" />
-          </CardHeader>
-          <CardContent className="relative z-10">
-            <div className="text-3xl font-bold tracking-tight">{Math.round(progresoMeta)}%</div>
-            <Progress 
-                value={progresoMeta} 
-                className="mt-4 h-2.5 bg-slate-200 dark:bg-slate-800" 
-                indicatorClassName="bg-gradient-to-r from-indigo-500 to-violet-500" 
-            />
-            <p className="text-sm font-medium text-muted-foreground mt-3 flex justify-between">
-              <span>{formatCurrency(recaudacionTotalNeto)}</span>
-              <span className="text-foreground/70">{formatCurrency(metaMensual)}</span>
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Cierran en 7 días"
+          value={cierranPronto.length.toLocaleString("es-CL")}
+          subtitle={matchProfile ? "De las compatibles contigo" : "De todas las activas"}
+          icon={CalendarClock}
+        />
+        <StatCard
+          title="Mis postulaciones"
+          value={enviadas + borradores}
+          subtitle={`${enviadas} enviadas · ${borradores} en borrador`}
+          icon={FileCheck2}
+        />
       </div>
 
       {/* Second Row: Advanced Insights B2B */}
@@ -174,8 +172,9 @@ export default function Dashboard() {
               </p>
               <Progress value={Number(winRate)} className="h-3 my-6 rounded-full" indicatorClassName="bg-gradient-to-r from-indigo-500 to-violet-500" />
               <div className="flex gap-2 text-sm">
-                 <Badge variant="outline" className="border-indigo-500/20 text-indigo-500 font-bold bg-indigo-500/10">Histórico: +3.2%</Badge>
-                 <Badge variant="outline" className="text-muted-foreground">Último trimestre</Badge>
+                 <Badge variant="outline" className="border-indigo-500/20 text-indigo-500 font-bold bg-indigo-500/10">
+                   {terminadas > 0 ? `${ganadas} ganadas de ${terminadas}` : "Aún sin postulaciones cerradas"}
+                 </Badge>
               </div>
             </div>
           </CardContent>

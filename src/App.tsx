@@ -17,6 +17,7 @@ import Suscripcion from "./pages/Suscripcion";
 import Login from "./pages/Login";
 import FAQ from "./pages/FAQ";
 import Agenda from "./pages/Agenda";
+import Restablecer from "./pages/Restablecer";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
             <Routes>
               {/* Ruta pública */}
               <Route path="/login" element={<Login />} />
+              <Route path="/restablecer" element={<Restablecer />} />
 
               {/* Rutas protegidas — redirigen a /login si no hay sesión */}
               <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />

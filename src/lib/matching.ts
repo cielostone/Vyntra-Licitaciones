@@ -1,44 +1,90 @@
+import type { Licitacion } from "@/services/mercadoPublico";
 
-import { Licitacion } from "@/services/mercadoPublico";
+// Perfil de búsqueda de la organización (tabla match_configs, se edita en Configuración)
+export interface MatchProfile {
+  keywords: string[];
+  categorias: string[];
+  regiones: string[];
+  monto_minimo: number | null;
+  monto_maximo: number | null;
+}
 
-// Default mock profile for fallback until we implement profile preferences in DB
-const defaultProfile = {
-  keywords: ["tecnología", "software", "desarrollo", "infraestructura", "seguridad", "ciberseguridad", "transformación digital"],
-  categories: ["Tecnología", "Consultoría", "Servicios"]
-};
+export interface MatchResult {
+  score: number; // 0–100
+  reasons: string[]; // por qué calza (para el tooltip)
+}
 
-export const calculateMatchScore = (licitacion: Licitacion, userProfile: any = defaultProfile): number => {
+// Minúsculas y sin tildes, para que "tecnologia" calce con "Tecnología"
+export const normalize = (s: string): string =>
+  (s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+
+const isEmptyProfile = (p: MatchProfile) =>
+  p.keywords.length === 0 && p.categorias.length === 0;
+
+/**
+ * Score 0–100 según el perfil real de la organización:
+ *  - Palabras clave en título/descripción: hasta 50 (30 la primera, +10 c/u extra)
+ *  - Rubros en título/descripción/categoría: 15
+ *  - Región: 15 (si no hay regiones configuradas o es "Todas", cuenta como calce)
+ *  - Monto dentro del rango: 15 (monto aún desconocido = 5)
+ *  - Estado Abierta: 5
+ * Devuelve null si el perfil está vacío (hay que configurarlo).
+ */
+export const calculateMatch = (
+  licitacion: Licitacion,
+  profile: MatchProfile | null,
+): MatchResult | null => {
+  if (!profile || isEmptyProfile(profile)) return null;
+
   let score = 0;
-  const maxScore = 100;
+  const reasons: string[] = [];
 
-  const profile = userProfile || defaultProfile;
-  const keywords = profile.keywords || [];
-  const categories = profile.categories || [];
+  const titulo = normalize(licitacion.titulo);
+  const texto = `${titulo} ${normalize(licitacion.description)} ${normalize(licitacion.categoria)}`;
 
-  // 1. Category Match (30 points)
-  if (categories.includes(licitacion.categoria)) {
-    score += 30;
+  // 1. Palabras clave (50)
+  const hits = profile.keywords.filter((k) => k && texto.includes(normalize(k)));
+  if (hits.length > 0) {
+    score += Math.min(30 + (hits.length - 1) * 10, 50);
+    reasons.push(`Palabras clave: ${hits.slice(0, 3).join(", ")}`);
   }
 
-  // 2. Keyword Matching in Title (40 points)
-  const titleLower = licitacion.titulo.toLowerCase();
-  const matchedKeywords = keywords.filter((keyword: string) =>
-    titleLower.includes(keyword.toLowerCase())
-  );
-
-  // Add points for each keyword found, up to 40
-  score += Math.min(matchedKeywords.length * 15, 40);
-
-  // 3. Status Bonus (10 points)
-  if (licitacion.estado === "Abierta") {
-    score += 10;
+  // 2. Rubros (15)
+  const rubroHit = profile.categorias.find((c) => c && texto.includes(normalize(c)));
+  if (rubroHit) {
+    score += 15;
+    reasons.push(`Rubro: ${rubroHit}`);
   }
 
-  // 4. Budget Fit (Mock Logic - 20 points)
-  // Assuming user prefers projects > 10M
-  if (licitacion.montoEstimado > 10000000) {
-    score += 20;
+  // 3. Región (15)
+  const regiones = profile.regiones.map(normalize).filter(Boolean);
+  const todas = regiones.length === 0 || regiones.includes("todas");
+  const region = normalize(licitacion.region);
+  if (todas) {
+    score += 15;
+  } else if (region && regiones.some((r) => region.includes(r) || r.includes(region))) {
+    score += 15;
+    reasons.push(`Región: ${licitacion.region}`);
+  } else if (!region) {
+    score += 5; // aún no se carga el detalle
   }
 
-  return Math.min(score, maxScore);
+  // 4. Monto (15)
+  const monto = licitacion.montoEstimado;
+  const min = profile.monto_minimo ?? 0;
+  const max = profile.monto_maximo ?? Infinity;
+  if (!monto) {
+    score += 5;
+  } else if (monto >= min && monto <= max) {
+    score += 15;
+    reasons.push("Monto dentro de tu rango");
+  }
+
+  // 5. Estado (5)
+  if (licitacion.estado === "Abierta") score += 5;
+
+  // Sin calce de rubro ni palabra clave, no puede pasar de 35
+  if (hits.length === 0 && !rubroHit) score = Math.min(score, 35);
+
+  return { score: Math.min(score, 100), reasons };
 };

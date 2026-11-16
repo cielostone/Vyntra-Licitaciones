@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Star, FileDown, Eye, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -28,7 +28,8 @@ import {
 } from "@/components/ui/popover";
 import { formatCurrency, formatDate } from "@/data/licitaciones";
 import type { LicitacionStatus } from "@/data/licitaciones";
-import { calculateMatchScore } from "@/lib/matching";
+import { calculateMatch } from "@/lib/matching";
+import { useMatchProfile } from "@/hooks/useMatchProfile";
 import { useVyntra } from "@/context/VyntraContext";
 import { useLicitaciones } from "@/hooks/useLicitaciones";
 import { Loader2 } from "lucide-react";
@@ -46,7 +47,8 @@ export default function Oportunidades() {
   // Debounce: retrasa el filtro 300ms después del último keystroke
   const debouncedSearch = useDebounce(searchQuery, 300);
 
-  const { licitaciones, loading } = useLicitaciones();
+  const { licitaciones, loading, prefetchDetalles } = useLicitaciones();
+  const { profile: matchProfile } = useMatchProfile();
   const { favorites, toggleFavorite, subscriptionPlan } = useVyntra();
   const { toast } = useToast();
 
@@ -77,8 +79,16 @@ export default function Oportunidades() {
       const matchesStatus = statusFilter === "Todas" || licitacion.estado === statusFilter;
       const matchesFavorite = showFavoritesOnly ? favorites.includes(licitacion.id) : true;
       return matchesSearch && matchesStatus && matchesFavorite;
-    });
-  }, [debouncedSearch, statusFilter, showFavoritesOnly, favorites, licitaciones, loading]);
+    })
+      .map((licitacion) => ({
+        licitacion,
+        match: calculateMatch(licitacion, matchProfile),
+        // Orden solo por título/rubro, para que las filas no salten cuando llega el monto/región
+        orden: calculateMatch({ ...licitacion, montoEstimado: 0, region: "" }, matchProfile)?.score ?? 0,
+      }))
+      // Mejores calces primero (si hay perfil configurado)
+      .sort((a, b) => b.orden - a.orden);
+  }, [debouncedSearch, statusFilter, showFavoritesOnly, favorites, licitaciones, loading, matchProfile]);
 
   // Paginación — renderizar solo PAGE_SIZE filas a la vez
   const totalPages = Math.ceil(filteredLicitaciones.length / PAGE_SIZE);
@@ -86,6 +96,15 @@ export default function Oportunidades() {
     const start = (page - 1) * PAGE_SIZE;
     return filteredLicitaciones.slice(start, start + PAGE_SIZE);
   }, [filteredLicitaciones, page]);
+
+  // Traer organismo/monto/región de las filas visibles
+  const visibleIds = paginatedLicitaciones.map(({ licitacion }) => licitacion.id).join(",");
+  useEffect(() => {
+    if (!visibleIds) return;
+    const signal = { cancelled: false };
+    prefetchDetalles(visibleIds.split(","), signal);
+    return () => { signal.cancelled = true; };
+  }, [visibleIds, prefetchDetalles]);
 
   // Reset página al cambiar filtros
   useMemo(() => { setPage(1); }, [debouncedSearch, statusFilter, showFavoritesOnly]);
@@ -100,7 +119,7 @@ export default function Oportunidades() {
     if (selectedItems.length === filteredLicitaciones.length) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(filteredLicitaciones.map(l => l.id));
+      setSelectedItems(filteredLicitaciones.map(({ licitacion }) => licitacion.id));
     }
   };
 
@@ -220,8 +239,8 @@ export default function Oportunidades() {
                   </td>
                 </tr>
               ) : (
-                paginatedLicitaciones.map((licitacion, index) => {
-                const matchScore = calculateMatchScore(licitacion);
+                paginatedLicitaciones.map(({ licitacion, match }, index) => {
+                const matchScore = match?.score;
                 const isFavorite = favorites.includes(licitacion.id);
 
                 return (
@@ -240,12 +259,18 @@ export default function Oportunidades() {
                       <TooltipProvider delayDuration={200}>
                         <Tooltip>
                           <TooltipTrigger>
-                            <div className={`inline-flex items-center justify-center font-bold px-2.5 py-1 rounded-lg ${matchScore > 85 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'}`}>
-                              {matchScore}%
+                            <div className={`inline-flex items-center justify-center font-bold px-2.5 py-1 rounded-lg ${matchScore === undefined ? 'bg-slate-500/10 text-slate-500 border border-slate-500/20' : matchScore >= 70 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'}`}>
+                              {matchScore === undefined ? "—" : `${matchScore}%`}
                             </div>
                           </TooltipTrigger>
                           <TooltipContent className="bg-slate-900 border-white/10 text-white font-medium shadow-2xl">
-                            <p>Score de compatibilidad basado en el Radar Vyntra</p>
+                            {match === null ? (
+                              <p>Configura tus palabras clave y rubros en Configuración para ver tu calce</p>
+                            ) : match.reasons.length > 0 ? (
+                              <ul className="space-y-0.5">{match.reasons.map((r) => <li key={r}>• {r}</li>)}</ul>
+                            ) : (
+                              <p>No calza con tus palabras clave ni rubros</p>
+                            )}
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>

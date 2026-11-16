@@ -36,7 +36,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         getSession();
 
         // Listen for changes on auth state (sing in, sign out, etc.)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            // Enlace de recuperación de contraseña: llevar a la pantalla para fijar una nueva
+            if (event === "PASSWORD_RECOVERY" && window.location.pathname !== "/restablecer") {
+                window.location.replace("/restablecer");
+            }
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);

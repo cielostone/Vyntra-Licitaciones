@@ -9,8 +9,10 @@ import { toast } from "sonner";
 import { Zap, Building2, User, ArrowRight, Loader2, ChevronLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatRut, validateRut } from "@/lib/rut";
+import { useLicitaciones } from "@/hooks/useLicitaciones";
 
 const Login = () => {
+    const { licitaciones: activas, loading: cargandoActivas } = useLicitaciones();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -50,6 +52,18 @@ const Login = () => {
     const handleCompanyNameChange = (val: string) => {
         const clean = val.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s'.,&-]/g, '');
         setCompanyName(clean);
+    };
+
+    const handleForgotPassword = async () => {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            toast.error("Escribe tu correo arriba y vuelve a apretar ¿Olvidaste tu contraseña?");
+            return;
+        }
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/restablecer`,
+        });
+        if (error) toast.error(`No se pudo enviar el correo: ${error.message}`);
+        else toast.success("Te enviamos un enlace para crear una contraseña nueva.");
     };
 
     const handleAuth = async (e: React.FormEvent) => {
@@ -195,7 +209,7 @@ const Login = () => {
                     {/* Stats Premium */}
                     <div className="grid grid-cols-3 gap-6 pt-8 border-t border-slate-800/50 mt-8">
                         {[
-                            { value: "4.151", label: "Licitaciones Activas" },
+                            { value: cargandoActivas ? "…" : activas.length.toLocaleString("es-CL"), label: "Licitaciones activas hoy" },
                             { value: "Rápido", label: "Filtro Inteligente" },
                             { value: "100%", label: "Seguridad RLS" },
                         ].map((stat) => (
@@ -271,7 +285,7 @@ const Login = () => {
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="password" className="text-sm font-semibold text-foreground/90">Contraseña</Label>
                                 {!isSignUp && (
-                                    <a href="#" className="text-sm font-medium text-primary hover:underline">¿Olvidaste tu contraseña?</a>
+                                    <button type="button" onClick={handleForgotPassword} className="text-sm font-medium text-primary hover:underline">¿Olvidaste tu contraseña?</button>
                                 )}
                             </div>
                             <Input
