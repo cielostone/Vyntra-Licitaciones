@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { CalendarClock, ArrowRight, Activity, Zap, Radar, FileCheck2 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { Badge } from "@/components/ui/badge";
@@ -10,13 +10,53 @@ import { formatCurrency } from "@/data/licitaciones";
 import { useVyntra } from "@/context/VyntraContext";
 import { useMatchProfile } from "@/hooks/useMatchProfile";
 import { calculateMatch } from "@/lib/matching";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { consultarCopiloto } from "@/services/copiloto";
+import { fetchLicitacionPorCodigo, type Licitacion } from "@/services/mercadoPublico";
+import { CopilotoRespuesta } from "@/components/CopilotoRespuesta";
 import { useLicitaciones } from "@/hooks/useLicitaciones";
 import { Loader2, Trophy, Sparkles, Bot, Search, MessageSquare, FileText } from "lucide-react";
 export default function Dashboard() {
   const { licitaciones, loading, prefetchDetalles } = useLicitaciones();
   const { drafts } = useVyntra();
   const { profile: matchProfile } = useMatchProfile();
+  const navigate = useNavigate();
+
+  // Copiloto IA
+  const [pregunta, setPregunta] = useState("");
+  const [respuesta, setRespuesta] = useState<string | null>(null);
+  const [pensando, setPensando] = useState(false);
+  const [errorIA, setErrorIA] = useState<string | null>(null);
+
+  const preguntarCopiloto = async (texto: string, licitacion?: Licitacion) => {
+    setPensando(true);
+    setErrorIA(null);
+    setRespuesta(null);
+    try {
+      let lic = licitacion;
+      // Si la pregunta trae un código de licitación (ej: 1001-19-LE26), adjuntar su detalle
+      const codigo = texto.match(/\b\d{2,7}-\d{1,5}-[A-Z][A-Z0-9]\d{2}\b/i)?.[0];
+      if (!lic && codigo) lic = (await fetchLicitacionPorCodigo(codigo.toUpperCase())) ?? undefined;
+      setRespuesta(await consultarCopiloto({ pregunta: texto || undefined, licitacion: lic, perfil: matchProfile }));
+    } catch (e) {
+      setErrorIA(e instanceof Error ? e.message : "Error del Copiloto");
+    } finally {
+      setPensando(false);
+    }
+  };
+
+  const explicarMejorCalce = async () => {
+    if (!matchProfile) {
+      setErrorIA("Primero configura tus palabras clave y rubros en Configuración.");
+      return;
+    }
+    const mejor = [...licitaciones]
+      .map((l) => ({ l, s: calculateMatch(l, matchProfile)?.score ?? 0 }))
+      .sort((a, b) => b.s - a.s)[0]?.l;
+    if (!mejor) return;
+    const detalle = (await fetchLicitacionPorCodigo(mejor.id).catch(() => null)) ?? mejor;
+    preguntarCopiloto("", detalle);
+  };
 
   const recentLicitaciones = licitaciones.slice(0, 5);
   const recentIds = recentLicitaciones.map((l) => l.id).join(",");
@@ -120,29 +160,53 @@ export default function Dashboard() {
               <div className="relative flex items-center bg-background border border-indigo-500/30 rounded-xl px-2 shadow-sm">
                 <Bot className="h-5 w-5 text-indigo-400 ml-2" />
                 <Input 
-                  placeholder="¿Qué necesitas analizar o redactar hoy...?"
+                  placeholder="Pregunta algo o pega un código (ej: 1001-19-LE26)"
                   className="border-none focus-visible:ring-0 bg-transparent text-sm h-12"
+                  value={pregunta}
+                  onChange={(e) => setPregunta(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && pregunta.trim() && !pensando) preguntarCopiloto(pregunta.trim()); }}
+                  disabled={pensando}
                 />
-                <Button size="icon" className="h-8 w-8 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shrink-0 mr-1">
-                  <ArrowRight className="h-4 w-4" />
+                <Button
+                  size="icon"
+                  className="h-8 w-8 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shrink-0 mr-1"
+                  onClick={() => pregunta.trim() && preguntarCopiloto(pregunta.trim())}
+                  disabled={pensando || !pregunta.trim()}
+                >
+                  {pensando ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
             
+            {errorIA && <p className="text-sm text-destructive">{errorIA}</p>}
+            {pensando && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin text-indigo-500" /> El Copiloto está pensando...
+              </div>
+            )}
+            {respuesta ? (
+              <div className="space-y-2">
+                <CopilotoRespuesta texto={respuesta} />
+                <button className="text-xs font-semibold text-indigo-600 hover:underline" onClick={() => setRespuesta(null)}>
+                  Nueva consulta
+                </button>
+              </div>
+            ) : (
             <div className="flex flex-col gap-2 pt-2">
-              <button className="flex items-center gap-2 text-sm font-semibold text-muted-foreground bg-muted/30 hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors p-3 rounded-xl border border-transparent hover:border-indigo-500/20 text-left">
+              <button className="flex items-center gap-2 text-sm font-semibold text-muted-foreground bg-muted/30 hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors p-3 rounded-xl border border-transparent hover:border-indigo-500/20 text-left disabled:opacity-50" onClick={explicarMejorCalce} disabled={pensando || loading}>
                 <FileText className="h-4 w-4 text-indigo-400 shrink-0" />
-                Redactar resumen ejecutivo para licitación...
+                Explícame la licitación que más calza con mi empresa
               </button>
-              <button className="flex items-center gap-2 text-sm font-semibold text-muted-foreground bg-muted/30 hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors p-3 rounded-xl border border-transparent hover:border-indigo-500/20 text-left">
+              <button className="flex items-center gap-2 text-sm font-semibold text-muted-foreground bg-muted/30 hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors p-3 rounded-xl border border-transparent hover:border-indigo-500/20 text-left disabled:opacity-50" onClick={() => navigate("/oportunidades")}>
                 <Search className="h-4 w-4 text-indigo-400 shrink-0" />
                 Encontrar oportunidades abiertas hoy en mi rubro
               </button>
-              <button className="flex items-center gap-2 text-sm font-semibold text-muted-foreground bg-muted/30 hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors p-3 rounded-xl border border-transparent hover:border-indigo-500/20 text-left">
+              <button className="flex items-center gap-2 text-sm font-semibold text-muted-foreground bg-muted/30 hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors p-3 rounded-xl border border-transparent hover:border-indigo-500/20 text-left disabled:opacity-50" onClick={() => preguntarCopiloto("Nunca le he vendido al Estado. ¿Qué necesito para quedar habilitada en Mercado Público y postular a mi primera Compra Ágil?")} disabled={pensando}>
                 <MessageSquare className="h-4 w-4 text-indigo-400 shrink-0" />
-                Evaluar riesgo comercial según anexos técnicos...
+                ¿Qué necesito para venderle al Estado por primera vez?
               </button>
             </div>
+            )}
           </CardContent>
         </Card>
 
