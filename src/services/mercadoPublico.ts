@@ -136,7 +136,13 @@ export async function fetchLicitacionPorCodigo(codigo: string): Promise<Licitaci
   if (!TICKET) throw new Error("VITE_MERCADO_PUBLICO_TICKET no está configurado");
 
   const url = `${BASE_URL}/licitaciones.json?codigo=${codigo}&ticket=${TICKET}`;
-  const response = await fetch(url);
+  // La API responde 429 si hay muchas consultas simultáneas: reintentar con espera creciente
+  let response = await fetch(url);
+  for (const espera of [800, 2000, 4000]) {
+    if (response.status !== 429) break;
+    await new Promise((r) => setTimeout(r, espera));
+    response = await fetch(url);
+  }
   if (!response.ok) return null;
 
   const json = await response.json();
@@ -144,6 +150,9 @@ export async function fetchLicitacionPorCodigo(codigo: string): Promise<Licitaci
   if (items.length === 0) return null;
 
   const item = items[0];
+  // En el detalle las fechas vienen dentro de item.Fechas
+  const cierre = item.Fechas?.FechaCierre ?? item.FechaCierre;
+  const publicacion = item.Fechas?.FechaPublicacion ?? item.FechaPublicacion;
   return {
     id:               item.CodigoExterno,
     titulo:           item.Nombre,
@@ -151,8 +160,8 @@ export async function fetchLicitacionPorCodigo(codigo: string): Promise<Licitaci
                       ?? item.Comprador?.NombreUnidad
                       ?? `Org. ${getCodigoOrganismo(item.CodigoExterno)}`,
     montoEstimado:    item.MontoEstimado ?? 0,
-    fechaCierre:      item.FechaCierre ? item.FechaCierre.split("T")[0] : "",
-    fechaPublicacion: item.FechaPublicacion ? item.FechaPublicacion.split("T")[0] : "",
+    fechaCierre:      cierre ? cierre.split("T")[0] : "",
+    fechaPublicacion: publicacion ? publicacion.split("T")[0] : "",
     estado:           mapEstado(item.CodigoEstado),
     categoria:        item.Tipo ?? inferCategoria(item.CodigoExterno),
     region:           item.Comprador?.RegionUnidad ?? "",

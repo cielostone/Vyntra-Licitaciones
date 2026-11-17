@@ -54,12 +54,13 @@ export const useLicitaciones = () => {
     const [lastSync, setLastSync] = useState<Date | null>(null);
     const [detallesVersion, setDetallesVersion] = useState(0);
 
-    // Pide en background el detalle de los códigos visibles: lotes de 5, 200ms entre lotes
+    // Pide en background el detalle de los códigos visibles: lotes de 3, 500ms entre lotes
+    // (la API de Mercado Público responde 429 si recibe muchas consultas a la vez)
     const prefetchDetalles = useCallback(async (ids: string[], signal?: { cancelled: boolean }) => {
         const pendientes = ids.filter((id) => !detalles[id] && !enCurso.has(id));
-        for (let i = 0; i < pendientes.length; i += 5) {
+        for (let i = 0; i < pendientes.length; i += 3) {
             if (signal?.cancelled) return;
-            const lote = pendientes.slice(i, i + 5);
+            const lote = pendientes.slice(i, i + 3);
             lote.forEach((id) => enCurso.add(id));
             const res = await Promise.all(lote.map((id) => fetchLicitacionPorCodigo(id).catch(() => null)));
             lote.forEach((id) => enCurso.delete(id));
@@ -68,7 +69,7 @@ export const useLicitaciones = () => {
             });
             guardarDetalles();
             if (!signal?.cancelled) setDetallesVersion((v) => v + 1);
-            await new Promise((r) => setTimeout(r, 200));
+            await new Promise((r) => setTimeout(r, 500));
         }
     }, []);
 

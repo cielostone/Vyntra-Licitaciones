@@ -52,13 +52,28 @@ Usa texto plano con títulos cortos en negrita (**así**) y viñetas con "- ". M
 const formatoCLP = (n?: number) =>
   n && n > 0 ? new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n) : "No informado";
 
+// Tipos de licitación pública por monto (UTM), según el sufijo del código
+const TIPOS: Record<string, string> = {
+  L1: "L1: licitación pública menor a 100 UTM",
+  LE: "LE: licitación pública entre 100 y 1.000 UTM",
+  LP: "LP: licitación pública entre 1.000 y 2.000 UTM",
+  LQ: "LQ: licitación pública entre 2.000 y 5.000 UTM",
+  LR: "LR: licitación pública de 5.000 UTM o más",
+};
+
+function tipoLicitacion(l: Licitacion): string {
+  // "LE26" → "LE", "L126" → "L1" (los 2 últimos dígitos son el año)
+  const sufijo = l.id.split("-").pop()?.slice(0, 2).toUpperCase() ?? "";
+  return TIPOS[sufijo] ?? l.categoria ?? "No informado";
+}
+
 function describirLicitacion(l: Licitacion): string {
   return [
     `Código: ${l.id}`,
     `Título: ${l.titulo}`,
     `Organismo comprador: ${l.organismo || "No informado"}`,
     `Monto estimado: ${formatoCLP(l.montoEstimado)}`,
-    `Tipo: ${l.categoria || "No informado"}`,
+    `Tipo: ${tipoLicitacion(l)}`,
     `Estado: ${l.estado || "No informado"}`,
     `Publicación: ${l.fechaPublicacion || "No informada"}`,
     `Cierre de ofertas: ${l.fechaCierre || "No informado"}`,
