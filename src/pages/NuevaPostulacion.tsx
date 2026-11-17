@@ -16,6 +16,39 @@ import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// Descarga una imagen (logo o firma) y la convierte a data URL para jsPDF.
+// Si la URL no existe o bloquea CORS, devuelve null y el PDF sigue sin imagen.
+async function imagenComoDataUrl(url?: string | null): Promise<string | null> {
+    if (!url) return null;
+    try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        if (!blob.type.startsWith("image/")) return null;
+        return await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch {
+        return null;
+    }
+}
+
+// Inserta la imagen ajustada a una caja (x, y, ancho, alto) sin deformarla
+function dibujarImagen(doc: jsPDF, dataUrl: string, x: number, y: number, w: number, h: number) {
+    try {
+        const props = doc.getImageProperties(dataUrl);
+        const escala = Math.min(w / props.width, h / props.height);
+        const iw = props.width * escala;
+        const ih = props.height * escala;
+        doc.addImage(dataUrl, props.fileType, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih);
+    } catch {
+        console.warn("No se pudo insertar la imagen en el PDF");
+    }
+}
+
 export default function NuevaPostulacion() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -120,7 +153,7 @@ export default function NuevaPostulacion() {
         });
     };
 
-    const handleGenerateQuote = () => {
+    const handleGenerateQuote = async () => {
         if (!licitacion) return;
 
         if (subscriptionPlan === 'free') {
@@ -131,6 +164,11 @@ export default function NuevaPostulacion() {
             });
             return;
         }
+
+        const [logo, firma] = await Promise.all([
+            imagenComoDataUrl(organization?.logo_url),
+            imagenComoDataUrl(organization?.firma_url),
+        ]);
 
         const doc = new jsPDF();
 
@@ -149,17 +187,11 @@ export default function NuevaPostulacion() {
         doc.setTextColor(255, 255, 255);
         doc.text("COTIZACIÓN OFICIAL", 105, 20, { align: "center" });
 
-        // Add Logo if exists
-        try {
-            if (organization?.logo_url) {
-                // To safely add images from URL, the image must be base64. 
-                // We'll load it visually if it's external, or just skip if it fails CORS
-                // For MVP, we simulated the logo text
-                doc.setFontSize(14);
-                doc.text(organization.name || "Mi Empresa", 15, 20);
-            }
-        } catch (e) {
-            console.warn("Could not add logo to PDF");
+        // Logo de la empresa en una caja blanca a la izquierda del encabezado
+        if (logo) {
+            doc.setFillColor(255, 255, 255);
+            doc.roundedRect(10, 4, 34, 22, 2, 2, "F");
+            dibujarImagen(doc, logo, 11, 5, 32, 20);
         }
 
         doc.setTextColor(darkText[0], darkText[1], darkText[2]);
@@ -176,10 +208,18 @@ export default function NuevaPostulacion() {
 
         doc.setFont("helvetica", "normal");
         doc.text(`Organismo Cliente:`, 15, 59);
-        doc.text(licitacion.organismo, 55, 59);
+        const lineasOrganismo: string[] = doc.splitTextToSize(licitacion.organismo, 70);
+        doc.text(lineasOrganismo.length > 1 ? `${lineasOrganismo[0]}…` : lineasOrganismo[0], 55, 59);
 
         doc.text(`Fecha Emisión:`, 15, 66);
-        doc.text(new Date().toLocaleDateString(), 55, 66);
+        doc.text(new Date().toLocaleDateString("es-CL"), 55, 66);
+
+        // Datos del proveedor (columna derecha)
+        doc.setFont("helvetica", "bold");
+        doc.text("PROVEEDOR", 130, 45);
+        doc.setFont("helvetica", "normal");
+        doc.text(doc.splitTextToSize(organization?.name || "Mi Empresa", 65), 130, 52);
+        doc.text(`RUT: ${organization?.rut || "—"}`, 130, 66);
 
         // ================= TABLA DE ÍTEMS =================
         const tableBody = items.map((item, i) => [
@@ -244,6 +284,7 @@ export default function NuevaPostulacion() {
         }
 
         // ================= FIRMA DIGITAL =================
+        if (firma) dibujarImagen(doc, firma, 80, 238, 50, 20);
         doc.setDrawColor(203, 213, 225); // Slate 300
         doc.line(75, 260, 135, 260); // Signature line
         doc.setFont("helvetica", "bold");
