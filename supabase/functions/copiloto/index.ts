@@ -6,7 +6,8 @@
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const MODEL = "claude-opus-5-5";
+// Haiku: resumen corto y de alto volumen, ~40x más barato que Opus
+const MODEL = "claude-haiku-5-5";
 const MAX_PREGUNTA = 2000;
 const MAX_DESCRIPCION = 20000;
 
@@ -116,14 +117,11 @@ Deno.serve(async (req) => {
   const client = new Anthropic(); // lee ANTHROPIC_API_KEY del entorno
 
   try {
-    const response = await client.beta.messages.create({
+    const response = await client.messages.create({
       model: MODEL,
       max_tokens: 16000,
       // Tarea corta y la usuaria espera en pantalla: esfuerzo bajo para responder rápido
       output_config: { effort: "low" },
-      // Si el modelo declina por política, el servidor reintenta con el modelo de respaldo
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
       system: SYSTEM,
       messages: [{ role: "user", content: partes.join("\n\n") }],
     });
@@ -133,7 +131,7 @@ Deno.serve(async (req) => {
     }
 
     const texto = response.content
-      .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
       .join("\n")
       .trim();
