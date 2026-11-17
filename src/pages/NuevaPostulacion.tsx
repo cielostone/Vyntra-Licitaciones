@@ -15,6 +15,7 @@ import { useVyntra } from "@/context/VyntraContext";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { COLOR_MARCA_DEFAULT, esColorClaro, esHexValido, hexARgb } from "@/lib/marca";
 
 // Descarga una imagen (logo o firma) y la convierte a data URL para jsPDF.
 // Si la URL no existe o bloquea CORS, devuelve null y el PDF sigue sin imagen.
@@ -173,7 +174,11 @@ export default function NuevaPostulacion() {
         const doc = new jsPDF();
 
         // Colors
-        const primaryColor = [79, 70, 229]; // Indigo 600
+        // Color elegido en Configuración → Identidad Comercial
+        const colorMarca = esHexValido(organization?.brand_color) ? organization.brand_color : COLOR_MARCA_DEFAULT;
+        const primaryColor = hexARgb(colorMarca);
+        const marcaClara = esColorClaro(colorMarca);
+        const textoSobreMarca: [number, number, number] = marcaClara ? [15, 23, 42] : [255, 255, 255];
         const secondaryColor = [100, 116, 139]; // Slate 500
         const darkText = [15, 23, 42]; // Slate 900
 
@@ -184,7 +189,7 @@ export default function NuevaPostulacion() {
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(22);
-        doc.setTextColor(255, 255, 255);
+        doc.setTextColor(...textoSobreMarca);
         doc.text("COTIZACIÓN OFICIAL", 105, 20, { align: "center" });
 
         // Logo de la empresa en una caja blanca a la izquierda del encabezado
@@ -235,7 +240,7 @@ export default function NuevaPostulacion() {
             head: [['N°', 'Descripción del Servicio/Producto', 'Cant.', 'Precio Unitario', 'Total Neto']],
             body: tableBody,
             theme: 'striped',
-            headStyles: { fillColor: primaryColor as any, textColor: 255, fontStyle: 'bold' },
+            headStyles: { fillColor: primaryColor, textColor: textoSobreMarca, fontStyle: 'bold' },
             styles: { fontSize: 9, cellPadding: 4 },
             columnStyles: {
                 0: { cellWidth: 10, halign: 'center' },
@@ -262,7 +267,8 @@ export default function NuevaPostulacion() {
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
-        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        if (marcaClara) doc.setTextColor(15, 23, 42);
+        else doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
         doc.text(`TOTAL FINAL:`, 125, finalY + 16);
         doc.text(formatCurrency(total), 185, finalY + 16, { align: "right" });
 

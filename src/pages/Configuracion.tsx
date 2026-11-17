@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { SubirImagen } from "@/components/SubirImagen";
+import { COLORES_SUGERIDOS, COLOR_MARCA_DEFAULT, esColorClaro, esHexValido } from "@/lib/marca";
 
 const DEFAULT_AVATARS = [
   "https://api.dicebear.com/7.x/shapes/svg?seed=vyntra1&backgroundColor=4f46e5",
@@ -39,6 +41,8 @@ export default function Configuracion() {
   const [rutEmpresa, setRutEmpresa] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [firmaUrl, setFirmaUrl] = useState("");
+  const [colorMarca, setColorMarca] = useState(COLOR_MARCA_DEFAULT);
+  const [colorDelLogo, setColorDelLogo] = useState<string | null>(null);
   const [savingCompany, setSavingCompany] = useState(false);
 
   // Alarms and Notifications data
@@ -79,6 +83,7 @@ export default function Configuracion() {
             setRutEmpresa(oData.rut || pData.company_rut || "");
             setLogoUrl(oData.logo_url || "");
             setFirmaUrl(oData.firma_url || "");
+            if (esHexValido(oData.brand_color)) setColorMarca(oData.brand_color);
           }
         }
       }
@@ -140,7 +145,8 @@ export default function Configuracion() {
     const { error } = await supabase.from('organizations').update({
       rut: rutEmpresa,
       logo_url: logoUrl,
-      firma_url: firmaUrl
+      firma_url: firmaUrl,
+      brand_color: colorMarca
     }).eq('id', profile.organization_id);
 
     setSavingCompany(false);
@@ -477,27 +483,67 @@ export default function Configuracion() {
                   Timbres Corporativos
                 </h3>
                 <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="logo" className="text-sm font-medium">Logo Oficial de la Empresa (URL)</Label>
-                    <Input 
-                      id="logo" 
-                      value={logoUrl} 
-                      onChange={(e) => setLogoUrl(e.target.value)} 
-                      placeholder="https://tudominio.com/logo_corporativo.png" 
-                      className="bg-background/80"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">Este logo se imprimirá en los PDFs de cotización B2B.</p>
-                  </div>
+                  <SubirImagen
+                    id="logo"
+                    label="Logo de la empresa"
+                    ayuda="PNG o JPG. Se imprime en tus cotizaciones en PDF."
+                    value={logoUrl}
+                    onChange={(dataUrl, color) => {
+                      setLogoUrl(dataUrl);
+                      setColorDelLogo(color);
+                      if (color) setColorMarca(color);
+                    }}
+                  />
+                  <SubirImagen
+                    id="firma"
+                    label="Firma del representante"
+                    ayuda="Idealmente en fondo blanco o transparente."
+                    value={firmaUrl}
+                    onChange={(dataUrl) => setFirmaUrl(dataUrl)}
+                  />
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="firma" className="text-sm font-medium">Firma Digital del Representante (URL)</Label>
-                    <Input 
-                      id="firma" 
-                      value={firmaUrl} 
-                      onChange={(e) => setFirmaUrl(e.target.value)} 
-                      placeholder="https://tudominio.com/firma.png" 
-                      className="bg-background/80"
-                    />
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Color de tus cotizaciones</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[...new Set([...(colorDelLogo ? [colorDelLogo] : []), ...COLORES_SUGERIDOS])].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        title={c === colorDelLogo ? "Color de tu logo" : c}
+                        aria-label={`Usar color ${c}`}
+                        onClick={() => setColorMarca(c)}
+                        className={`h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 ${colorMarca.toUpperCase() === c.toUpperCase() ? "border-foreground scale-110" : "border-transparent"}`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                    <label className="flex h-8 cursor-pointer items-center gap-2 rounded-full border border-border px-3 text-xs text-muted-foreground hover:bg-muted/50">
+                      <input
+                        type="color"
+                        value={colorMarca}
+                        onChange={(e) => setColorMarca(e.target.value.toUpperCase())}
+                        className="h-4 w-4 cursor-pointer border-0 bg-transparent p-0"
+                      />
+                      Otro color
+                    </label>
+                  </div>
+                  {colorDelLogo && (
+                    <p className="text-xs text-muted-foreground">Tomamos el color de tu logo. Puedes elegir otro.</p>
+                  )}
+                  {/* Vista previa del encabezado del PDF */}
+                  <div className="overflow-hidden rounded-lg border border-border">
+                    <div
+                      className="flex h-14 items-center gap-3 px-3"
+                      style={{ backgroundColor: colorMarca, color: esColorClaro(colorMarca) ? "#0F172A" : "#FFFFFF" }}
+                    >
+                      {logoUrl && (
+                        <div className="flex h-10 w-14 items-center justify-center rounded bg-white p-0.5">
+                          <img src={logoUrl} alt="" className="max-h-full max-w-full object-contain" />
+                        </div>
+                      )}
+                      <span className="flex-1 text-center text-sm font-bold tracking-wide">COTIZACIÓN OFICIAL</span>
+                    </div>
+                    <p className="bg-muted/30 px-3 py-1.5 text-[11px] text-muted-foreground">Así se verá el encabezado de tus cotizaciones.</p>
                   </div>
                 </div>
 
