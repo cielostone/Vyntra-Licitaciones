@@ -58,6 +58,12 @@ export default function Configuracion() {
     const fetchAll = async () => {
       // 1. Fetch Profile
       const { data: pData } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      // Usuarios creados sin organización: crearla y vincularla (función SQL ensure_my_organization)
+      if (pData && !pData.organization_id) {
+        const { data: orgId, error: orgError } = await supabase.rpc('ensure_my_organization');
+        if (orgError) console.error('No se pudo crear la organización:', orgError);
+        else pData.organization_id = orgId;
+      }
       if (pData) {
         setProfile(pData);
         setWhatsappNumber(pData.whatsapp_number || "");

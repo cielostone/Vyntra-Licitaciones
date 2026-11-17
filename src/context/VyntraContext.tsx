@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type SubscriptionPlan = "free" | "pro" | "enterprise";
 
@@ -25,8 +26,8 @@ interface VyntraContextType {
     saveDraft: (draft: Draft) => void;
     getDraft: (id: string) => Draft | undefined;
     updateDraftStatus: (id: string, status: 'draft' | 'submitted' | 'won' | 'lost') => void;
+    // Plan de la organización, leído de la base de datos (no se cambia desde el navegador)
     subscriptionPlan: SubscriptionPlan;
-    setSubscriptionPlan: (plan: SubscriptionPlan) => void;
 }
 
 const VyntraContext = createContext<VyntraContextType | undefined>(undefined);
@@ -43,10 +44,27 @@ export function VyntraProvider({ children }: { children: React.ReactNode }) {
         return saved ? JSON.parse(saved) : [];
     });
 
-    const [subscriptionPlan, setSubscriptionPlan] = useState<SubscriptionPlan>(() => {
-        const saved = localStorage.getItem("vyntra_subscription");
-        return (saved as SubscriptionPlan) || "free";
-    });
+    const [subscriptionPlan, setSubscriptionPlan] = useState<SubscriptionPlan>("free");
+
+    // El plan vive en organizations.plan; se recarga al iniciar o cerrar sesión
+    useEffect(() => {
+        const cargarPlan = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return setSubscriptionPlan("free");
+            const { data: perfil } = await supabase.from("profiles").select("organization_id").eq("id", user.id).maybeSingle();
+            if (!perfil?.organization_id) return setSubscriptionPlan("free");
+            const { data: org } = await supabase.from("organizations").select("plan").eq("id", perfil.organization_id).maybeSingle();
+            const plan = org?.plan;
+            setSubscriptionPlan(plan === "pro" || plan === "enterprise" ? plan : "free");
+        };
+        cargarPlan();
+        localStorage.removeItem("vyntra_subscription"); // ya no se usa
+        // setTimeout: no llamar a supabase dentro del callback de auth (puede bloquearse)
+        const { data } = supabase.auth.onAuthStateChange((evento) => {
+            if (evento === "SIGNED_IN" || evento === "SIGNED_OUT") setTimeout(cargarPlan, 0);
+        });
+        return () => data.subscription.unsubscribe();
+    }, []);
 
     // Persist to localStorage whenever state changes
     useEffect(() => {
@@ -56,10 +74,6 @@ export function VyntraProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         localStorage.setItem("vyntra_drafts", JSON.stringify(drafts));
     }, [drafts]);
-
-    useEffect(() => {
-        localStorage.setItem("vyntra_subscription", subscriptionPlan);
-    }, [subscriptionPlan]);
 
     const toggleFavorite = (id: string) => {
         setFavorites(prev =>
@@ -97,7 +111,6 @@ export function VyntraProvider({ children }: { children: React.ReactNode }) {
                 getDraft,
                 updateDraftStatus,
                 subscriptionPlan,
-                setSubscriptionPlan,
             }}
         >
             {children}

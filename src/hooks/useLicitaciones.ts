@@ -1,5 +1,48 @@
-import { useEffect, useState } from "react";
-import { fetchLicitacionesActivas, Licitacion } from "@/services/mercadoPublico";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchLicitacionesActivas, fetchLicitacionPorCodigo, Licitacion } from "@/services/mercadoPublico";
+
+// ─────────────────────────────────────────────
+// Caché de DETALLES (organismo, monto, región, descripción).
+// El listado de MP no los trae; se piden por código y se guardan
+// a nivel de módulo + localStorage para que sobrevivan entre páginas.
+// ─────────────────────────────────────────────
+const DETALLES_KEY = "vyntra_detalles_cache";
+const DETALLES_TTL = 12 * 60 * 60 * 1000; // 12 horas
+type DetalleCache = Record<string, { d: Licitacion; t: number }>;
+
+const detalles: DetalleCache = (() => {
+    try {
+        const raw = JSON.parse(localStorage.getItem(DETALLES_KEY) ?? "{}") as DetalleCache;
+        const now = Date.now();
+        return Object.fromEntries(Object.entries(raw).filter(([, v]) => now - v.t < DETALLES_TTL));
+    } catch {
+        return {};
+    }
+})();
+const enCurso = new Set<string>();
+
+const guardarDetalles = () => {
+    try {
+        localStorage.setItem(DETALLES_KEY, JSON.stringify(detalles));
+    } catch {
+        /* cuota llena: seguimos solo en memoria */
+    }
+};
+
+// El estado y título vienen del listado (más fresco); el resto del detalle
+const mezclar = (base: Licitacion): Licitacion => {
+    const det = detalles[base.id]?.d;
+    if (!det) return base;
+    return {
+        ...base,
+        organismo: det.organismo,
+        montoEstimado: det.montoEstimado,
+        region: det.region,
+        description: det.description,
+        fechaPublicacion: det.fechaPublicacion,
+        categoria: det.categoria,
+    };
+};
 
 // Re-exportamos el tipo para que el resto de la app no tenga que cambiar imports
 export type { Licitacion };
@@ -9,6 +52,36 @@ export const useLicitaciones = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [lastSync, setLastSync] = useState<Date | null>(null);
+    const [detallesVersion, setDetallesVersion] = useState(0);
+
+    // Pide en background el detalle de los códigos visibles: lotes de 3, 500ms entre lotes
+    // (la API de Mercado Público responde 429 si recibe muchas consultas a la vez)
+    const prefetchDetalles = useCallback(async (ids: string[], signal?: { cancelled: boolean }) => {
+        const pendientes = ids.filter((id) => !detalles[id] && !enCurso.has(id));
+        for (let i = 0; i < pendientes.length; i += 3) {
+            if (signal?.cancelled) return;
+            const lote = pendientes.slice(i, i + 3);
+            lote.forEach((id) => enCurso.add(id));
+            const res = await Promise.all(lote.map((id) => fetchLicitacionPorCodigo(id).catch(() => null)));
+            lote.forEach((id) => enCurso.delete(id));
+            res.forEach((d) => {
+                if (d) detalles[d.id] = { d, t: Date.now() };
+            });
+            guardarDetalles();
+            if (!signal?.cancelled) setDetallesVersion((v) => v + 1);
+            await new Promise((r) => setTimeout(r, 500));
+        }
+    }, []);
+
+    // Cuando el Drawer ya trajo el detalle, guardarlo sin volver a pedirlo
+    const enrichLicitacion = useCallback((d: Licitacion) => {
+        detalles[d.id] = { d, t: Date.now() };
+        guardarDetalles();
+        setDetallesVersion((v) => v + 1);
+    }, []);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const licitacionesConDetalle = useMemo(() => licitaciones.map(mezclar), [licitaciones, detallesVersion]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -78,7 +151,9 @@ export const useLicitaciones = () => {
     }, []);
 
     return {
-        licitaciones,
+        licitaciones: licitacionesConDetalle,
+        prefetchDetalles,
+        enrichLicitacion,
         loading,
         error,
         lastSync,

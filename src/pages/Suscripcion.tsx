@@ -3,7 +3,7 @@ import { Check, Star, Zap, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useVyntra, SubscriptionPlan } from "@/context/VyntraContext";
+import { useVyntra } from "@/context/VyntraContext";
 import { useToast } from "@/hooks/use-toast";
 
 const plans = [
@@ -13,10 +13,10 @@ const plans = [
         price: "$0",
         description: "Para comenzar a explorar",
         features: [
-            "Búsqueda básica de licitaciones",
-            "Ver detalles de oportunidades",
-            "Gestión de hasta 3 favoritos",
-            "Acceso limitado a borradores"
+            "Radar de licitaciones activas",
+            "Match AI con el perfil de tu empresa",
+            "Copiloto IA que explica cada licitación",
+            "Hasta 3 favoritos"
         ],
         icon: Star,
         color: "bg-gray-100 text-gray-900"
@@ -29,10 +29,9 @@ const plans = [
         description: "Para profesionales independientes",
         features: [
             "Todo lo de Gratis",
-            "Búsqueda avanzada y filtros",
             "Favoritos ilimitados",
-            "Gestión ilimitada de borradores",
-            "Generación de PDF profesional",
+            "Cotizaciones en PDF con tu logo y firma",
+            "Seguimiento de postulaciones y tasa de éxito",
             "Alertas por correo (Próximamente)"
         ],
         popular: true,
@@ -47,11 +46,10 @@ const plans = [
         description: "Para equipos de licitaciones",
         features: [
             "Todo lo de Profesional",
-            "Múltiples usuarios",
-            "Scoring de match con IA avanzado",
+            "Múltiples usuarios (Próximamente)",
             "Análisis de competidores (Próximamente)",
-            "Soporte prioritario 24/7",
-            "API de integración"
+            "API de integración (Próximamente)",
+            "Soporte prioritario"
         ],
         icon: Building,
         color: "bg-gray-900 text-white"
@@ -59,15 +57,15 @@ const plans = [
 ];
 
 export default function Suscripcion() {
-    const { subscriptionPlan, setSubscriptionPlan } = useVyntra();
+    const { subscriptionPlan } = useVyntra();
     const { toast } = useToast();
 
-    const handleSubscribe = (planId: string) => {
-        setSubscriptionPlan(planId as SubscriptionPlan);
+    // El plan se activa desde el servidor (organizations.plan); aún no hay pago en línea
+    const handleSubscribe = (planName: string) => {
         toast({
-            title: "¡Suscripción actualizada!",
-            description: `Te has suscrito al plan ${planId.charAt(0).toUpperCase() + planId.slice(1)}.`,
-            duration: 3000,
+            title: `Plan ${planName}`,
+            description: "El pago en línea estará disponible pronto. Mientras tanto, activamos tu plan a mano.",
+            duration: 4000,
         });
     };
 
@@ -142,10 +140,10 @@ export default function Suscripcion() {
                                 <Button
                                     className="w-full"
                                     variant={isCurrent ? "default" : "outline"}
-                                    onClick={() => handleSubscribe(plan.id)}
-                                    disabled={isCurrent}
+                                    onClick={() => handleSubscribe(plan.name)}
+                                    disabled={isCurrent || plan.id === "free"}
                                 >
-                                    {isCurrent ? "Plan Actual" : "Suscribirse"}
+                                    {isCurrent ? "Plan Actual" : plan.id === "free" ? "Incluido" : "Quiero este plan"}
                                 </Button>
                             </CardFooter>
                         </Card>

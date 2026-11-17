@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { X, ExternalLink, Building2, Calendar, Tag, MapPin, Loader2, FileText } from "lucide-react";
+import { X, ExternalLink, Building2, Calendar, Tag, MapPin, Loader2, FileText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { fetchLicitacionPorCodigo, type Licitacion } from "@/services/mercadoPublico";
 import { formatCurrency, formatDate } from "@/data/licitaciones";
+import { consultarCopiloto } from "@/services/copiloto";
+import { useMatchProfile } from "@/hooks/useMatchProfile";
+import { CopilotoRespuesta } from "@/components/CopilotoRespuesta";
 
 interface LicitacionDrawerProps {
   licitacionId: string | null;
@@ -14,9 +17,28 @@ interface LicitacionDrawerProps {
 export function LicitacionDrawer({ licitacionId, onClose }: LicitacionDrawerProps) {
   const [detalle, setDetalle] = useState<Licitacion | null>(null);
   const [loading, setLoading] = useState(false);
+  const { profile } = useMatchProfile();
+  const [resumen, setResumen] = useState<string | null>(null);
+  const [resumiendo, setResumiendo] = useState(false);
+  const [errorIA, setErrorIA] = useState<string | null>(null);
+
+  const resumirConIA = async () => {
+    if (!detalle) return;
+    setResumiendo(true);
+    setErrorIA(null);
+    try {
+      setResumen(await consultarCopiloto({ licitacion: detalle, perfil: profile }));
+    } catch (e) {
+      setErrorIA(e instanceof Error ? e.message : "Error del Copiloto");
+    } finally {
+      setResumiendo(false);
+    }
+  };
 
   useEffect(() => {
     if (!licitacionId) return;
+    setResumen(null);
+    setErrorIA(null);
     setDetalle(null);
     setLoading(true);
     fetchLicitacionPorCodigo(licitacionId)
@@ -84,6 +106,23 @@ export function LicitacionDrawer({ licitacionId, onClose }: LicitacionDrawerProp
                   <span className="text-xs text-muted-foreground">{detalle.categoria}</span>
                 </div>
               </div>
+
+              {/* Copiloto IA */}
+              {resumen ? (
+                <CopilotoRespuesta texto={resumen} />
+              ) : (
+                <div className="space-y-2">
+                  <Button
+                    onClick={resumirConIA}
+                    disabled={resumiendo}
+                    className="w-full gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white"
+                  >
+                    {resumiendo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {resumiendo ? "El Copiloto está leyendo la licitación..." : "Explícamela en simple (IA)"}
+                  </Button>
+                  {errorIA && <p className="text-xs text-destructive">{errorIA}</p>}
+                </div>
+              )}
 
               {/* Metadata en grid */}
               <div className="grid grid-cols-2 gap-4">

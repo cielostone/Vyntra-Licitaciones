@@ -119,7 +119,7 @@ export function TopNavbar() {
           {/* Opciones Avanzadas (Hamburguesa de escritorio) */}
           <div className="hidden sm:flex items-center gap-2">
             <Badge variant="outline" className="border-indigo-500/30 text-indigo-400 bg-indigo-500/10 uppercase font-bold text-[10px] tracking-wider px-2 py-0.5 shadow-inner">
-              PRO
+              {subscriptionPlan}
             </Badge>
 
             {/* Hub de Herramientas y Ajustes */}
@@ -229,6 +229,19 @@ export function TopNavbar() {
               </NavLink>
             );
           })}
+          <NavLink
+            to="/configuracion"
+            onClick={() => setMobileMenuOpen(false)}
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300",
+              location.pathname.startsWith("/configuracion")
+                ? "bg-indigo-600 text-white font-bold"
+                : "text-slate-400 hover:text-white hover:bg-white/5"
+            )}
+          >
+            <UserCircle className="h-5 w-5" />
+            Configuración
+          </NavLink>
           <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between px-4">
              <Badge variant="outline" className="border-indigo-500/30 text-indigo-400 bg-indigo-500/10 uppercase">
               Plan {subscriptionPlan}
