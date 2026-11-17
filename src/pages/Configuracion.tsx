@@ -38,6 +38,7 @@ export default function Configuracion() {
   const [montoMax, setMontoMax] = useState("");
 
   // Company / Branding data
+  const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [rutEmpresa, setRutEmpresa] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [firmaUrl, setFirmaUrl] = useState("");
@@ -80,6 +81,7 @@ export default function Configuracion() {
         if (pData.organization_id) {
           const { data: oData } = await supabase.from('organizations').select('*').eq('id', pData.organization_id).single();
           if (oData) {
+            setNombreEmpresa(oData.name || pData.company_name || "");
             setRutEmpresa(oData.rut || pData.company_rut || "");
             setLogoUrl(oData.logo_url || "");
             setFirmaUrl(oData.firma_url || "");
@@ -140,9 +142,15 @@ export default function Configuracion() {
       return;
     }
 
+    if (!nombreEmpresa.trim()) {
+      toast.error("Escribe el nombre de tu empresa: aparece en tus cotizaciones.");
+      return;
+    }
+
     setSavingCompany(true);
 
     const { error } = await supabase.from('organizations').update({
+      name: nombreEmpresa.trim(),
       rut: rutEmpresa,
       logo_url: logoUrl,
       firma_url: firmaUrl,
@@ -459,7 +467,15 @@ export default function Configuracion() {
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="razon" className="text-sm font-medium">{profile?.person_type === 'juridica' ? 'Razón Social' : 'Nombre Comercial'}</Label>
-                    <Input id="razon" value={profile?.company_name || ""} disabled className="bg-muted/50 text-muted-foreground border-transparent cursor-not-allowed" />
+                    <Input
+                      id="razon"
+                      value={nombreEmpresa}
+                      onChange={(e) => setNombreEmpresa(e.target.value)}
+                      placeholder="Ej: Textiles Aurora SpA"
+                      maxLength={120}
+                      className="bg-background/80"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Así aparece tu empresa en las cotizaciones.</p>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 mb-1">
